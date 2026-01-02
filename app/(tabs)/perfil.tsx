@@ -34,18 +34,8 @@ export default function PerfilScreen() {
       onPress: () => router.push('/editar-perfil'),
     },
     {
-      icon: 'location-outline',
-      label: 'Alterar Localizacao',
-      onPress: () => router.push('/editar-perfil'),
-    },
-    {
       icon: 'notifications-outline',
       label: 'Notificacoes',
-      onPress: () => {},
-    },
-    {
-      icon: 'shield-checkmark-outline',
-      label: 'Privacidade',
       onPress: () => {},
     },
     {
