@@ -1,19 +1,80 @@
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { useAuthStore } from '@/src/stores/authStore';
+import { categoriaService } from '@/src/services/categoriaService';
+import { Categoria } from '@/src/types/categoria';
+
+const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'flash': 'flash',
+  'water': 'water',
+  'color-palette': 'color-palette',
+  'construct': 'construct',
+  'hammer': 'hammer',
+  'leaf': 'leaf',
+  'sparkles': 'sparkles',
+  'snow': 'snow',
+  'settings': 'settings',
+  'key': 'key',
+  'layers': 'layers',
+  'cut': 'cut',
+};
+
+const ICON_COLORS: Record<string, { bg: string; icon: string }> = {
+  'flash': { bg: '#fef3c7', icon: '#f59e0b' },
+  'water': { bg: '#dbeafe', icon: '#3b82f6' },
+  'color-palette': { bg: '#fce7f3', icon: '#ec4899' },
+  'construct': { bg: '#fed7aa', icon: '#ea580c' },
+  'hammer': { bg: '#e0e7ff', icon: '#6366f1' },
+  'leaf': { bg: '#d1fae5', icon: '#10b981' },
+  'sparkles': { bg: '#cffafe', icon: '#06b6d4' },
+  'snow': { bg: '#dbeafe', icon: '#0ea5e9' },
+  'settings': { bg: '#f3e8ff', icon: '#a855f7' },
+  'key': { bg: '#fef3c7', icon: '#eab308' },
+  'layers': { bg: '#e0e7ff', icon: '#4f46e5' },
+  'cut': { bg: '#fee2e2', icon: '#ef4444' },
+};
 
 export default function HomeScreen() {
   const { usuario } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
+  const { data: categorias, isLoading: isLoadingCategorias, refetch: refetchCategorias } = useQuery({
+    queryKey: ['categorias'],
+    queryFn: categoriaService.listar,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const onRefresh = async () => {
     setRefreshing(true);
-    // TODO: Carregar solicitações
-    setTimeout(() => setRefreshing(false), 1000);
+    await refetchCategorias();
+    setRefreshing(false);
+  };
+
+  const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
+    return ICON_MAP[icone] || 'ellipse';
+  };
+
+  const getIconColors = (icone: string) => {
+    return ICON_COLORS[icone] || { bg: '#f3f4f6', icon: '#6b7280' };
+  };
+
+  const renderCategoria = (categoria: Categoria) => {
+    const colors = getIconColors(categoria.icone);
+    return (
+      <TouchableOpacity key={categoria.id} style={styles.categoriaCard}>
+        <View style={[styles.categoriaIcon, { backgroundColor: colors.bg }]}>
+          <Ionicons name={getIconName(categoria.icone)} size={24} color={colors.icon} />
+        </View>
+        <Text style={styles.categoriaText} numberOfLines={1}>
+          {categoria.nome}
+        </Text>
+      </TouchableOpacity>
+    );
   };
 
   return (
@@ -63,7 +124,26 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acoes Rapidas</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Categorias</Text>
+            <TouchableOpacity>
+              <Text style={styles.seeAllText}>Ver todas</Text>
+            </TouchableOpacity>
+          </View>
+
+          {isLoadingCategorias ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#3b82f6" />
+            </View>
+          ) : (
+            <View style={styles.categoriasGrid}>
+              {categorias?.slice(0, 8).map(renderCategoria)}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitleNoMargin}>Acoes Rapidas</Text>
           <View style={styles.actionsGrid}>
             <TouchableOpacity style={styles.actionCard}>
               <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
@@ -97,7 +177,7 @@ export default function HomeScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Minhas Solicitacoes</Text>
+            <Text style={styles.sectionTitleNoMargin}>Minhas Solicitacoes</Text>
             <TouchableOpacity>
               <Text style={styles.seeAllText}>Ver todas</Text>
             </TouchableOpacity>
@@ -215,12 +295,44 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
+  },
+  sectionTitleNoMargin: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 16,
   },
   seeAllText: {
     fontSize: 14,
     color: '#3b82f6',
     fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  categoriasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  categoriaCard: {
+    width: '22%',
+    alignItems: 'center',
+  },
+  categoriaIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoriaText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'center',
   },
   actionsGrid: {
     flexDirection: 'row',

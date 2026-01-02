@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 
 import { useAuthStore } from '@/src/stores/authStore';
 
@@ -30,12 +31,12 @@ export default function PerfilScreen() {
     {
       icon: 'person-outline',
       label: 'Editar Perfil',
-      onPress: () => {},
+      onPress: () => router.push('/editar-perfil'),
     },
     {
       icon: 'location-outline',
       label: 'Alterar Localizacao',
-      onPress: () => {},
+      onPress: () => router.push('/editar-perfil'),
     },
     {
       icon: 'notifications-outline',

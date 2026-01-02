@@ -10,6 +10,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   setAuth: (usuario: UsuarioAuth, token: string, refreshToken: string) => Promise<void>;
+  updateUsuario: (usuario: Partial<UsuarioAuth>) => Promise<void>;
   logout: () => Promise<void>;
   loadStoredAuth: () => Promise<void>;
 }
@@ -32,6 +33,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       refreshToken,
       isAuthenticated: true,
       isLoading: false,
+    });
+  },
+
+  updateUsuario: async (usuarioData) => {
+    set((state) => {
+      if (!state.usuario) return state;
+      const updatedUsuario = { ...state.usuario, ...usuarioData };
+      SecureStore.setItemAsync('usuario', JSON.stringify(updatedUsuario));
+      return { usuario: updatedUsuario };
     });
   },
 

@@ -1,21 +1,28 @@
-export interface Usuario {
+export interface UsuarioResponse {
   id: number;
   nome: string;
   celular: string;
   fotoUrl: string | null;
-  cidade: Cidade;
-  bairro: Bairro;
-  isProfissional: boolean;
+  uf: string;
+  cidadeIbgeId: number;
+  cidadeNome: string;
+  bairro: string;
   criadoEm: string;
 }
 
-export interface Cidade {
-  id: number;
+export interface AtualizarUsuarioRequest {
   nome: string;
   uf: string;
+  cidadeIbgeId: number;
+  cidadeNome: string;
+  bairro: string;
 }
 
-export interface Bairro {
-  id: number;
-  nome: string;
+export interface AlterarSenhaRequest {
+  senhaAtual: string;
+  novaSenha: string;
+}
+
+export interface UploadFotoRequest {
+  fotoUrl: string;
 }
