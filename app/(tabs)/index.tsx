@@ -4,10 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 
 import { useAuthStore } from '@/src/stores/authStore';
 import { categoriaService } from '@/src/services/categoriaService';
+import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { Categoria } from '@/src/types/categoria';
+import { SolicitacaoResumo, StatusSolicitacao } from '@/src/types/solicitacao';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -39,6 +42,13 @@ const ICON_COLORS: Record<string, { bg: string; icon: string }> = {
   'cut': { bg: '#fee2e2', icon: '#ef4444' },
 };
 
+const STATUS_CONFIG: Record<StatusSolicitacao, { label: string; color: string; bg: string }> = {
+  ABERTA: { label: 'Aberta', color: '#059669', bg: '#d1fae5' },
+  EM_ANDAMENTO: { label: 'Em Andamento', color: '#d97706', bg: '#fef3c7' },
+  CONCLUIDA: { label: 'Concluida', color: '#2563eb', bg: '#dbeafe' },
+  CANCELADA: { label: 'Cancelada', color: '#dc2626', bg: '#fee2e2' },
+};
+
 export default function HomeScreen() {
   const { usuario } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -49,9 +59,19 @@ export default function HomeScreen() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const { data: solicitacoesData, isLoading: isLoadingSolicitacoes, refetch: refetchSolicitacoes } = useQuery({
+    queryKey: ['solicitacoes'],
+    queryFn: () => solicitacaoService.listar(0, 5),
+  });
+
+  const { data: stats, refetch: refetchStats } = useQuery({
+    queryKey: ['solicitacoes-stats'],
+    queryFn: solicitacaoService.getStats,
+  });
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetchCategorias();
+    await Promise.all([refetchCategorias(), refetchSolicitacoes(), refetchStats()]);
     setRefreshing(false);
   };
 
@@ -63,16 +83,52 @@ export default function HomeScreen() {
     return ICON_COLORS[icone] || { bg: '#f3f4f6', icon: '#6b7280' };
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  };
+
   const renderCategoria = (categoria: Categoria) => {
     const colors = getIconColors(categoria.icone);
     return (
-      <TouchableOpacity key={categoria.id} style={styles.categoriaCard}>
+      <TouchableOpacity
+        key={categoria.id}
+        style={styles.categoriaCard}
+        onPress={() => router.push({ pathname: '/criar-solicitacao', params: { categoriaId: categoria.id } })}
+      >
         <View style={[styles.categoriaIcon, { backgroundColor: colors.bg }]}>
           <Ionicons name={getIconName(categoria.icone)} size={24} color={colors.icon} />
         </View>
         <Text style={styles.categoriaText} numberOfLines={1}>
           {categoria.nome}
         </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderSolicitacao = (solicitacao: SolicitacaoResumo) => {
+    const statusConfig = STATUS_CONFIG[solicitacao.status];
+    const iconColors = getIconColors(solicitacao.categoriaIcone);
+
+    return (
+      <TouchableOpacity
+        key={solicitacao.id}
+        style={styles.solicitacaoCard}
+        onPress={() => router.push(`/solicitacao/${solicitacao.id}`)}
+      >
+        <View style={[styles.solicitacaoIcon, { backgroundColor: iconColors.bg }]}>
+          <Ionicons name={getIconName(solicitacao.categoriaIcone)} size={20} color={iconColors.icon} />
+        </View>
+        <View style={styles.solicitacaoInfo}>
+          <Text style={styles.solicitacaoTitulo} numberOfLines={1}>{solicitacao.titulo}</Text>
+          <Text style={styles.solicitacaoCategoria}>{solicitacao.categoriaNome}</Text>
+        </View>
+        <View style={styles.solicitacaoRight}>
+          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+            <Text style={[styles.statusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
+          </View>
+          <Text style={styles.solicitacaoData}>{formatDate(solicitacao.criadoEm)}</Text>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -126,9 +182,6 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Categorias</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Ver todas</Text>
-            </TouchableOpacity>
           </View>
 
           {isLoadingCategorias ? (
@@ -145,7 +198,7 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitleNoMargin}>Acoes Rapidas</Text>
           <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/criar-solicitacao')}>
               <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
                 <Ionicons name="add-circle-outline" size={28} color="#3b82f6" />
               </View>
@@ -157,6 +210,7 @@ export default function HomeScreen() {
                 <Ionicons name="time-outline" size={28} color="#f59e0b" />
               </View>
               <Text style={styles.actionText}>Em Andamento</Text>
+              <Text style={styles.actionCount}>{stats?.emAndamento || 0}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionCard}>
@@ -164,6 +218,7 @@ export default function HomeScreen() {
                 <Ionicons name="checkmark-circle-outline" size={28} color="#10b981" />
               </View>
               <Text style={styles.actionText}>Concluidas</Text>
+              <Text style={styles.actionCount}>{stats?.concluidas || 0}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionCard}>
@@ -171,6 +226,7 @@ export default function HomeScreen() {
                 <Ionicons name="star-outline" size={28} color="#ec4899" />
               </View>
               <Text style={styles.actionText}>Avaliacoes</Text>
+              <Text style={styles.actionCount}>0</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -178,22 +234,34 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitleNoMargin}>Minhas Solicitacoes</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Ver todas</Text>
-            </TouchableOpacity>
+            {solicitacoesData && solicitacoesData.content.length > 0 && (
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>Ver todas</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
-            <Text style={styles.emptyTitle}>Nenhuma solicitacao</Text>
-            <Text style={styles.emptySubtitle}>
-              Crie sua primeira solicitacao e encontre profissionais qualificados
-            </Text>
-            <TouchableOpacity style={styles.emptyButton}>
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.emptyButtonText}>Criar Solicitacao</Text>
-            </TouchableOpacity>
-          </View>
+          {isLoadingSolicitacoes ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#3b82f6" />
+            </View>
+          ) : solicitacoesData && solicitacoesData.content.length > 0 ? (
+            <View style={styles.solicitacoesList}>
+              {solicitacoesData.content.map(renderSolicitacao)}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
+              <Text style={styles.emptyTitle}>Nenhuma solicitacao</Text>
+              <Text style={styles.emptySubtitle}>
+                Crie sua primeira solicitacao e encontre profissionais qualificados
+              </Text>
+              <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/criar-solicitacao')}>
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.emptyButtonText}>Criar Solicitacao</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -359,6 +427,60 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     textAlign: 'center',
+  },
+  actionCount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginTop: 4,
+  },
+  solicitacoesList: {
+    gap: 12,
+  },
+  solicitacaoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+  },
+  solicitacaoIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  solicitacaoInfo: {
+    flex: 1,
+  },
+  solicitacaoTitulo: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  solicitacaoCategoria: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  solicitacaoRight: {
+    alignItems: 'flex-end',
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  solicitacaoData: {
+    fontSize: 12,
+    color: '#9ca3af',
   },
   emptyState: {
     backgroundColor: '#fff',
