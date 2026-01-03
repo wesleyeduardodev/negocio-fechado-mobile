@@ -18,7 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore, ModoApp } from '@/src/stores/authStore';
 import { profissionalService } from '@/src/services/profissionalService';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
-import { orcamentoService } from '@/src/services/orcamentoService';
+import { interesseService } from '@/src/services/interesseService';
 
 export default function PerfilScreen() {
   const { usuario, logout, modoAtual, setModo } = useAuthStore();
@@ -47,7 +47,7 @@ export default function PerfilScreen() {
 
   const { data: statsProfissional, refetch: refetchStatsProfissional } = useQuery({
     queryKey: ['profissional-stats'],
-    queryFn: orcamentoService.getStatsProfissional,
+    queryFn: interesseService.getStats,
     enabled: !!isProfissional,
     staleTime: 0,
     refetchOnMount: 'always',
@@ -113,11 +113,6 @@ export default function PerfilScreen() {
       icon: 'briefcase-outline',
       label: 'Meu Perfil Profissional',
       onPress: () => router.push('/meu-perfil-profissional'),
-    },
-    {
-      icon: 'chatbubbles-outline',
-      label: 'Meus Orcamentos',
-      onPress: () => router.push('/meus-orcamentos'),
     },
     {
       icon: 'bar-chart-outline',
@@ -263,13 +258,13 @@ export default function PerfilScreen() {
         {modoAtual === 'profissional' && (
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{statsProfissional?.orcamentosEnviados || 0}</Text>
-              <Text style={styles.statLabel}>Orcamentos</Text>
+              <Text style={styles.statNumber}>{statsProfissional?.interessesEnviados || 0}</Text>
+              <Text style={styles.statLabel}>Interesses</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{statsProfissional?.finalizados || 0}</Text>
-              <Text style={styles.statLabel}>Finalizados</Text>
+              <Text style={styles.statNumber}>{statsProfissional?.contratados || 0}</Text>
+              <Text style={styles.statLabel}>Contratados</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>

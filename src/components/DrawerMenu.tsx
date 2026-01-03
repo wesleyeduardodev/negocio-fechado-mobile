@@ -134,11 +134,6 @@ export default function DrawerMenu({ isOpen, onClose, isProfissional }: DrawerMe
       label: 'Meu Perfil Profissional',
       onPress: () => navigateTo('/meu-perfil-profissional'),
     },
-    {
-      icon: 'chatbubbles-outline' as const,
-      label: 'Meus Orcamentos',
-      onPress: () => navigateTo('/meus-orcamentos'),
-    },
   ];
 
   const menuItemsGeral = [

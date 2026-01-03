@@ -21,6 +21,7 @@ import { useAuthStore } from '@/src/stores/authStore';
 import { categoriaService } from '@/src/services/categoriaService';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { Categoria } from '@/src/types/categoria';
+import { Urgencia, URGENCIA_LABELS } from '@/src/types/solicitacao';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -47,7 +48,11 @@ export default function CriarSolicitacaoScreen() {
   const [categoriaNome, setCategoriaNome] = useState('');
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [urgencia, setUrgencia] = useState<Urgencia | null>(null);
   const [showCategoriaModal, setShowCategoriaModal] = useState(false);
+  const [showUrgenciaModal, setShowUrgenciaModal] = useState(false);
+
+  const urgenciaOptions: Urgencia[] = ['URGENTE', 'ESTA_SEMANA', 'PROXIMAS_SEMANAS', 'APENAS_ORCANDO'];
 
   const { data: categorias, isLoading: isLoadingCategorias } = useQuery({
     queryKey: ['categorias'],
@@ -99,11 +104,16 @@ export default function CriarSolicitacaoScreen() {
       Alert.alert('Erro', 'Descricao deve ter no minimo 10 caracteres');
       return;
     }
+    if (!urgencia) {
+      Alert.alert('Erro', 'Selecione quando precisa do servico');
+      return;
+    }
 
     criarMutation.mutate({
       categoriaId,
       titulo: titulo.trim(),
       descricao: descricao.trim(),
+      urgencia,
     });
   };
 
@@ -179,6 +189,19 @@ export default function CriarSolicitacaoScreen() {
             <Text style={styles.charCount}>{descricao.length}/1000</Text>
           </View>
 
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Quando precisa? *</Text>
+            <TouchableOpacity
+              style={styles.selectButton}
+              onPress={() => setShowUrgenciaModal(true)}
+            >
+              <Text style={urgencia ? styles.selectText : styles.selectPlaceholder}>
+                {urgencia ? URGENCIA_LABELS[urgencia] : 'Selecione o prazo'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
             style={[styles.submitButton, criarMutation.isPending && styles.submitButtonDisabled]}
             onPress={handleSubmit}
@@ -246,6 +269,53 @@ export default function CriarSolicitacaoScreen() {
                 <Text style={styles.emptyText}>Nenhuma categoria disponivel</Text>
               </View>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showUrgenciaModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Quando precisa?</Text>
+              <TouchableOpacity onPress={() => setShowUrgenciaModal(false)}>
+                <Ionicons name="close" size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {urgenciaOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={[
+                    styles.modalItem,
+                    urgencia === option && styles.modalItemSelected,
+                  ]}
+                  onPress={() => {
+                    setUrgencia(option);
+                    setShowUrgenciaModal(false);
+                  }}
+                >
+                  <View style={styles.urgenciaRow}>
+                    <Ionicons
+                      name={option === 'URGENTE' ? 'flash' : 'time-outline'}
+                      size={20}
+                      color={option === 'URGENTE' ? '#ef4444' : '#3b82f6'}
+                    />
+                    <Text
+                      style={[
+                        styles.modalItemText,
+                        urgencia === option && styles.modalItemTextSelected,
+                      ]}
+                    >
+                      {URGENCIA_LABELS[option]}
+                    </Text>
+                  </View>
+                  {urgencia === option && (
+                    <Ionicons name="checkmark" size={20} color="#3b82f6" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -406,6 +476,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#eff6ff',
   },
   categoriaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  urgenciaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

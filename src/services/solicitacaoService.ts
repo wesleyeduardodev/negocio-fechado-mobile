@@ -46,8 +46,8 @@ export const solicitacaoService = {
     return response.data;
   },
 
-  buscarDisponivelPorId: async (id: number): Promise<SolicitacaoDetalhe> => {
-    const response = await api.get<SolicitacaoDetalhe>(`/solicitacoes/disponiveis/${id}`);
+  buscarDisponivelPorId: async (id: number): Promise<SolicitacaoParaProfissional> => {
+    const response = await api.get<SolicitacaoParaProfissional>(`/solicitacoes/disponiveis/${id}`);
     return response.data;
   },
 };

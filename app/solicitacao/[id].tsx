@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,9 +17,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
 import { solicitacaoService } from '@/src/services/solicitacaoService';
-import { orcamentoService } from '@/src/services/orcamentoService';
-import { StatusSolicitacao } from '@/src/types/solicitacao';
-import { OrcamentoResumo, StatusOrcamento } from '@/src/types/orcamento';
+import { interesseService } from '@/src/services/interesseService';
+import { StatusSolicitacao, SolicitacaoDetalhe, SolicitacaoParaProfissional, URGENCIA_LABELS, Urgencia } from '@/src/types/solicitacao';
+import { Interesse, StatusInteresse } from '@/src/types/interesse';
 
 type SearchParams = {
   id: string;
@@ -47,69 +48,83 @@ const STATUS_CONFIG: Record<StatusSolicitacao, { label: string; color: string; b
   CANCELADA: { label: 'Cancelada', color: '#dc2626', bg: '#fee2e2' },
 };
 
-const STATUS_ORCAMENTO_CONFIG: Record<StatusOrcamento, { label: string; color: string; bg: string }> = {
-  PENDENTE: { label: 'Pendente', color: '#d97706', bg: '#fef3c7' },
-  ACEITO: { label: 'Aceito', color: '#059669', bg: '#d1fae5' },
-  RECUSADO: { label: 'Recusado', color: '#dc2626', bg: '#fee2e2' },
-  EXPIRADO: { label: 'Expirado', color: '#6b7280', bg: '#f3f4f6' },
-};
-
 export default function SolicitacaoDetalheScreen() {
   const { id, modo } = useLocalSearchParams<SearchParams>();
   const queryClient = useQueryClient();
   const isProfissionalMode = modo === 'profissional';
+  const [interesseEnviado, setInteresseEnviado] = useState(false);
 
-  const { data: solicitacao, isLoading, error, refetch: refetchSolicitacao } = useQuery({
-    queryKey: ['solicitacao', id, isProfissionalMode],
-    queryFn: () => isProfissionalMode
-      ? solicitacaoService.buscarDisponivelPorId(Number(id))
-      : solicitacaoService.buscarPorId(Number(id)),
-    enabled: !!id,
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
-
-  const { data: orcamentos, isLoading: isLoadingOrcamentos, refetch: refetchOrcamentos } = useQuery({
-    queryKey: ['orcamentos', id],
-    queryFn: () => orcamentoService.listarPorSolicitacao(Number(id)),
+  // Query para modo cliente
+  const {
+    data: solicitacaoCliente,
+    isLoading: isLoadingCliente,
+    error: errorCliente,
+    refetch: refetchCliente
+  } = useQuery({
+    queryKey: ['solicitacao', id],
+    queryFn: () => solicitacaoService.buscarPorId(Number(id)),
     enabled: !!id && !isProfissionalMode,
     staleTime: 0,
     refetchOnMount: 'always',
   });
 
-  // Refetch ao voltar para a tela
+  // Query para modo profissional
+  const {
+    data: solicitacaoProfissional,
+    isLoading: isLoadingProfissional,
+    error: errorProfissional,
+    refetch: refetchProfissional
+  } = useQuery({
+    queryKey: ['solicitacao-profissional', id],
+    queryFn: () => solicitacaoService.buscarDisponivelPorId(Number(id)),
+    enabled: !!id && isProfissionalMode,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  // Query para listar interessados (modo cliente)
+  const { data: interessados, isLoading: isLoadingInteressados, refetch: refetchInteressados } = useQuery({
+    queryKey: ['interessados', id],
+    queryFn: () => interesseService.listarPorSolicitacao(Number(id)),
+    enabled: !!id && !isProfissionalMode,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
   useFocusEffect(
     useCallback(() => {
-      refetchSolicitacao();
-      if (!isProfissionalMode) {
-        refetchOrcamentos();
+      if (isProfissionalMode) {
+        refetchProfissional();
+      } else {
+        refetchCliente();
+        refetchInteressados();
       }
-    }, [refetchSolicitacao, refetchOrcamentos, isProfissionalMode])
+    }, [refetchCliente, refetchProfissional, refetchInteressados, isProfissionalMode])
   );
 
-  const aceitarMutation = useMutation({
-    mutationFn: (orcamentoId: number) => orcamentoService.aceitar(orcamentoId),
+  const interesseMutation = useMutation({
+    mutationFn: interesseService.criar,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['solicitacao', id] });
-      queryClient.invalidateQueries({ queryKey: ['orcamentos', id] });
-      queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
-      queryClient.invalidateQueries({ queryKey: ['solicitacoes-stats'] });
-      Alert.alert('Sucesso', 'Orcamento aceito! A solicitacao esta agora em andamento.');
+      setInteresseEnviado(true);
+      queryClient.invalidateQueries({ queryKey: ['solicitacao-profissional', id] });
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.message || 'Erro ao aceitar orcamento';
+      const message = error?.response?.data?.message || 'Erro ao registrar interesse';
       Alert.alert('Erro', message);
     },
   });
 
-  const recusarMutation = useMutation({
-    mutationFn: (orcamentoId: number) => orcamentoService.recusar(orcamentoId),
+  const contratarMutation = useMutation({
+    mutationFn: interesseService.marcarComoContratado,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orcamentos', id] });
-      Alert.alert('Sucesso', 'Orcamento recusado.');
+      queryClient.invalidateQueries({ queryKey: ['solicitacao', id] });
+      queryClient.invalidateQueries({ queryKey: ['interessados', id] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes-stats'] });
+      Alert.alert('Sucesso', 'Profissional contratado! A solicitacao esta agora em andamento.');
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.message || 'Erro ao recusar orcamento';
+      const message = error?.response?.data?.message || 'Erro ao contratar profissional';
       Alert.alert('Erro', message);
     },
   });
@@ -168,30 +183,63 @@ export default function SolicitacaoDetalheScreen() {
     router.push(`/avaliar/${id}`);
   };
 
-  const handleAceitarOrcamento = (orcamento: OrcamentoResumo) => {
+  const handleTenhoInteresse = () => {
+    if (!solicitacaoProfissional) return;
+
     Alert.alert(
-      'Aceitar Orcamento',
-      `Aceitar orcamento de ${orcamento.profissionalNome} no valor de ${formatCurrency(orcamento.valor)}?`,
+      'Demonstrar Interesse',
+      `Deseja demonstrar interesse nesta solicitacao de ${solicitacaoProfissional.clienteNome}?\n\nApos confirmar, o WhatsApp sera aberto para voce entrar em contato.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Aceitar', onPress: () => aceitarMutation.mutate(orcamento.id) },
+        {
+          text: 'Sim, tenho interesse',
+          onPress: () => {
+            interesseMutation.mutate(
+              { solicitacaoId: Number(id) },
+              {
+                onSuccess: () => {
+                  openWhatsAppProfissional();
+                }
+              }
+            );
+          }
+        },
       ]
     );
   };
 
-  const handleRecusarOrcamento = (orcamento: OrcamentoResumo) => {
-    Alert.alert(
-      'Recusar Orcamento',
-      `Recusar orcamento de ${orcamento.profissionalNome}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Recusar', style: 'destructive', onPress: () => recusarMutation.mutate(orcamento.id) },
-      ]
-    );
+  const openWhatsAppProfissional = () => {
+    if (!solicitacaoProfissional) return;
+
+    const mensagem = `Ola ${solicitacaoProfissional.clienteNome}! Vi sua solicitacao "${solicitacaoProfissional.titulo}" no app Negocio Fechado e tenho interesse em fazer o servico. Podemos conversar sobre os detalhes?`;
+    const whatsappUrl = `https://wa.me/55${solicitacaoProfissional.clienteCelular}?text=${encodeURIComponent(mensagem)}`;
+
+    Linking.openURL(whatsappUrl).catch(() => {
+      Alert.alert('Erro', 'Nao foi possivel abrir o WhatsApp');
+    });
   };
 
-  const handleEnviarOrcamento = () => {
-    router.push(`/enviar-orcamento?solicitacaoId=${id}`);
+  const handleWhatsAppCliente = (interesse: Interesse) => {
+    const solicitacao = solicitacaoCliente;
+    if (!solicitacao) return;
+
+    const mensagem = `Ola ${interesse.profissionalNome}! Vi que voce tem interesse na minha solicitacao "${solicitacao.titulo}" no app Negocio Fechado. Vamos conversar sobre o servico?`;
+    const whatsappUrl = `https://wa.me/55${interesse.profissionalCelular}?text=${encodeURIComponent(mensagem)}`;
+
+    Linking.openURL(whatsappUrl).catch(() => {
+      Alert.alert('Erro', 'Nao foi possivel abrir o WhatsApp');
+    });
+  };
+
+  const handleContratar = (interesse: Interesse) => {
+    Alert.alert(
+      'Contratar Profissional',
+      `Deseja marcar ${interesse.profissionalNome} como contratado para este servico?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Contratar', onPress: () => contratarMutation.mutate(interesse.id) },
+      ]
+    );
   };
 
   const handleLigar = (celular: string) => {
@@ -201,20 +249,8 @@ export default function SolicitacaoDetalheScreen() {
     });
   };
 
-  const handleWhatsApp = (celular: string, profissionalNome: string) => {
-    const mensagem = `Ola ${profissionalNome}, aceite seu orcamento para "${solicitacao?.titulo}" no app Negocio Fechado!`;
-    const whatsappUrl = `https://wa.me/55${celular}?text=${encodeURIComponent(mensagem)}`;
-    Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Erro', 'Nao foi possivel abrir o WhatsApp');
-    });
-  };
-
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
     return ICON_MAP[icone] || 'ellipse';
-  };
-
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
   const formatDate = (dateString: string) => {
@@ -227,6 +263,10 @@ export default function SolicitacaoDetalheScreen() {
       minute: '2-digit',
     });
   };
+
+  const isLoading = isProfissionalMode ? isLoadingProfissional : isLoadingCliente;
+  const error = isProfissionalMode ? errorProfissional : errorCliente;
+  const solicitacao = isProfissionalMode ? solicitacaoProfissional : solicitacaoCliente;
 
   if (isLoading) {
     return (
@@ -259,7 +299,10 @@ export default function SolicitacaoDetalheScreen() {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[solicitacao.status];
+  // Para modo cliente, precisamos do status
+  const statusConfig = !isProfissionalMode && 'status' in solicitacao
+    ? STATUS_CONFIG[solicitacao.status as StatusSolicitacao]
+    : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -278,14 +321,30 @@ export default function SolicitacaoDetalheScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statusCard}>
-          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
-            <Text style={[styles.statusText, { color: statusConfig.color }]}>
-              {statusConfig.label}
-            </Text>
+        {statusConfig && (
+          <View style={styles.statusCard}>
+            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+              <Text style={[styles.statusText, { color: statusConfig.color }]}>
+                {statusConfig.label}
+              </Text>
+            </View>
+            <Text style={styles.dateText}>Criada em {formatDate(solicitacao.criadoEm)}</Text>
           </View>
-          <Text style={styles.dateText}>Criada em {formatDate(solicitacao.criadoEm)}</Text>
-        </View>
+        )}
+
+        {isProfissionalMode && (
+          <View style={styles.clienteCard}>
+            <View style={styles.clienteAvatar}>
+              <Text style={styles.clienteAvatarText}>
+                {(solicitacao as SolicitacaoParaProfissional).clienteNome.charAt(0).toUpperCase()}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.clienteNome}>{(solicitacao as SolicitacaoParaProfissional).clienteNome}</Text>
+              <Text style={styles.clienteLabel}>Cliente</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.card}>
           <View style={styles.categoriaHeader}>
@@ -310,126 +369,151 @@ export default function SolicitacaoDetalheScreen() {
               {solicitacao.bairro}, {solicitacao.cidadeNome} - {solicitacao.uf}
             </Text>
           </View>
+          {solicitacao.urgencia && (
+            <View style={[styles.infoRow, { marginTop: 12 }]}>
+              <Ionicons
+                name={solicitacao.urgencia === 'URGENTE' ? 'flash' : 'time-outline'}
+                size={20}
+                color={solicitacao.urgencia === 'URGENTE' ? '#ef4444' : '#6b7280'}
+              />
+              <Text style={[
+                styles.infoText,
+                solicitacao.urgencia === 'URGENTE' && { color: '#ef4444', fontWeight: '600' }
+              ]}>
+                {URGENCIA_LABELS[solicitacao.urgencia as Urgencia]}
+              </Text>
+            </View>
+          )}
         </View>
 
+        {/* Modo Cliente - Lista de Interessados */}
         {!isProfissionalMode && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>
-              Orcamentos {orcamentos && orcamentos.length > 0 ? `(${orcamentos.length})` : ''}
+              Interessados {interessados && interessados.length > 0 ? `(${interessados.length})` : ''}
             </Text>
-            {isLoadingOrcamentos ? (
-              <View style={styles.loadingOrcamentos}>
+            {isLoadingInteressados ? (
+              <View style={styles.loadingInteressados}>
                 <ActivityIndicator size="small" color="#3b82f6" />
               </View>
-            ) : !orcamentos || orcamentos.length === 0 ? (
-              <View style={styles.emptyOrcamentos}>
-                <Ionicons name="document-text-outline" size={40} color="#d1d5db" />
-                <Text style={styles.emptyText}>Nenhum orcamento recebido</Text>
+            ) : !interessados || interessados.length === 0 ? (
+              <View style={styles.emptyInteressados}>
+                <Ionicons name="people-outline" size={40} color="#d1d5db" />
+                <Text style={styles.emptyText}>Nenhum profissional interessado ainda</Text>
                 <Text style={styles.emptySubtext}>
-                  Profissionais da regiao poderao enviar orcamentos
+                  Profissionais da regiao poderao demonstrar interesse
                 </Text>
               </View>
             ) : (
-              <View style={styles.orcamentosList}>
-                {orcamentos.map((orcamento) => {
-                  const statusConfig = STATUS_ORCAMENTO_CONFIG[orcamento.status];
-                  return (
-                    <View key={orcamento.id} style={styles.orcamentoItem}>
-                      <View style={styles.orcamentoHeader}>
-                        <View style={styles.orcamentoProfissional}>
-                          <View style={styles.profissionalAvatar}>
-                            <Text style={styles.profissionalAvatarText}>
-                              {orcamento.profissionalNome.charAt(0).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View>
-                            <Text style={styles.profissionalNome}>{orcamento.profissionalNome}</Text>
-                            <Text style={styles.orcamentoData}>
-                              {formatDate(orcamento.criadoEm)}
-                            </Text>
-                          </View>
+              <View style={styles.interessadosList}>
+                {interessados.map((interesse) => (
+                  <View key={interesse.id} style={styles.interessadoItem}>
+                    <View style={styles.interessadoHeader}>
+                      <View style={styles.interessadoProfissional}>
+                        <View style={styles.profissionalAvatar}>
+                          <Text style={styles.profissionalAvatarText}>
+                            {interesse.profissionalNome.charAt(0).toUpperCase()}
+                          </Text>
                         </View>
-                        <View style={[styles.orcamentoStatusBadge, { backgroundColor: statusConfig.bg }]}>
-                          <Text style={[styles.orcamentoStatusText, { color: statusConfig.color }]}>
-                            {statusConfig.label}
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.profissionalNome}>{interesse.profissionalNome}</Text>
+                          <Text style={styles.interesseData}>
+                            Interesse em {formatDate(interesse.criadoEm)}
                           </Text>
                         </View>
                       </View>
-                      <View style={styles.orcamentoValorRow}>
-                        <Text style={styles.orcamentoValorLabel}>Valor:</Text>
-                        <Text style={styles.orcamentoValor}>{formatCurrency(orcamento.valor)}</Text>
-                      </View>
-                      <View style={styles.orcamentoPrazoRow}>
-                        <Text style={styles.orcamentoPrazoLabel}>Prazo:</Text>
-                        <Text style={styles.orcamentoPrazo}>{orcamento.prazoEstimado}</Text>
-                      </View>
-                      <Text style={styles.orcamentoMensagem}>{orcamento.mensagem}</Text>
-                      {orcamento.status === 'ACEITO' && orcamento.profissionalCelular && (
-                        <View style={styles.contatoActions}>
-                          <TouchableOpacity
-                            style={styles.ligarButton}
-                            onPress={() => handleLigar(orcamento.profissionalCelular!)}
-                          >
-                            <Ionicons name="call" size={18} color="#fff" />
-                            <Text style={styles.ligarButtonText}>Ligar</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.whatsappButton}
-                            onPress={() => handleWhatsApp(orcamento.profissionalCelular!, orcamento.profissionalNome)}
-                          >
-                            <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-                            <Text style={styles.whatsappButtonText}>WhatsApp</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                      {orcamento.status === 'PENDENTE' && solicitacao.status === 'ABERTA' && (
-                        <View style={styles.orcamentoActions}>
-                          <TouchableOpacity
-                            style={styles.recusarButton}
-                            onPress={() => handleRecusarOrcamento(orcamento)}
-                            disabled={recusarMutation.isPending}
-                          >
-                            <Text style={styles.recusarButtonText}>Recusar</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.aceitarButton}
-                            onPress={() => handleAceitarOrcamento(orcamento)}
-                            disabled={aceitarMutation.isPending}
-                          >
-                            <Text style={styles.aceitarButtonText}>Aceitar</Text>
-                          </TouchableOpacity>
+                      {interesse.status === 'CONTRATADO' && (
+                        <View style={styles.contratadoBadge}>
+                          <Text style={styles.contratadoText}>Contratado</Text>
                         </View>
                       )}
                     </View>
-                  );
-                })}
+                    {interesse.profissionalBio && (
+                      <Text style={styles.profissionalBio} numberOfLines={2}>
+                        {interesse.profissionalBio}
+                      </Text>
+                    )}
+                    <View style={styles.contatoActions}>
+                      <TouchableOpacity
+                        style={styles.ligarButton}
+                        onPress={() => handleLigar(interesse.profissionalCelular)}
+                      >
+                        <Ionicons name="call" size={18} color="#fff" />
+                        <Text style={styles.ligarButtonText}>Ligar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.whatsappButton}
+                        onPress={() => handleWhatsAppCliente(interesse)}
+                      >
+                        <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                        <Text style={styles.whatsappButtonText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {interesse.status !== 'CONTRATADO' && (solicitacaoCliente as SolicitacaoDetalhe)?.status === 'ABERTA' && (
+                      <TouchableOpacity
+                        style={styles.contratarButton}
+                        onPress={() => handleContratar(interesse)}
+                        disabled={contratarMutation.isPending}
+                      >
+                        {contratarMutation.isPending ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                            <Text style={styles.contratarButtonText}>Contratar este profissional</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
           </View>
         )}
 
-        {isProfissionalMode && solicitacao.fotos && solicitacao.fotos.length > 0 && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Fotos ({solicitacao.fotos.length})</Text>
-            <Text style={styles.fotosInfo}>
-              O cliente anexou {solicitacao.fotos.length} foto(s) a esta solicitacao
-            </Text>
-          </View>
-        )}
-
+        {/* Modo Profissional - Botao Tenho Interesse */}
         {isProfissionalMode ? (
           <View style={styles.profissionalActions}>
-            <TouchableOpacity style={styles.enviarOrcamentoButton} onPress={handleEnviarOrcamento}>
-              <Ionicons name="send" size={20} color="#fff" />
-              <Text style={styles.enviarOrcamentoText}>Enviar Orcamento</Text>
-            </TouchableOpacity>
-            <Text style={styles.orcamentoHint}>
-              Envie uma proposta de valor para este servico
-            </Text>
+            {interesseEnviado ? (
+              <>
+                <View style={styles.interesseEnviadoCard}>
+                  <Ionicons name="checkmark-circle" size={32} color="#059669" />
+                  <Text style={styles.interesseEnviadoText}>Interesse registrado!</Text>
+                  <Text style={styles.interesseEnviadoSubtext}>
+                    O cliente foi notificado. Continue a conversa pelo WhatsApp.
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.whatsappButtonLarge} onPress={openWhatsAppProfissional}>
+                  <Ionicons name="logo-whatsapp" size={24} color="#fff" />
+                  <Text style={styles.whatsappButtonLargeText}>Abrir WhatsApp</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={styles.interesseButton}
+                  onPress={handleTenhoInteresse}
+                  disabled={interesseMutation.isPending}
+                >
+                  {interesseMutation.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="hand-right" size={20} color="#fff" />
+                      <Text style={styles.interesseButtonText}>Tenho Interesse</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <Text style={styles.interesseHint}>
+                  Ao demonstrar interesse, o WhatsApp sera aberto para voce conversar diretamente com o cliente
+                </Text>
+              </>
+            )}
           </View>
         ) : (
           <>
-            {solicitacao.status === 'CONCLUIDA' && (
+            {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'CONCLUIDA' && (
               <TouchableOpacity
                 style={styles.avaliarButton}
                 onPress={handleAvaliar}
@@ -438,7 +522,7 @@ export default function SolicitacaoDetalheScreen() {
                 <Text style={styles.avaliarButtonText}>Avaliar Profissional</Text>
               </TouchableOpacity>
             )}
-            {solicitacao.status === 'EM_ANDAMENTO' && (
+            {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'EM_ANDAMENTO' && (
               <TouchableOpacity
                 style={styles.concluirButton}
                 onPress={handleConcluir}
@@ -454,7 +538,7 @@ export default function SolicitacaoDetalheScreen() {
                 )}
               </TouchableOpacity>
             )}
-            {solicitacao.status === 'ABERTA' && (
+            {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'ABERTA' && (
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={handleCancelar}
@@ -556,6 +640,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
   },
+  clienteCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  clienteAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clienteAvatarText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  clienteNome: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  clienteLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
   card: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -607,7 +722,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 12,
   },
-  emptyOrcamentos: {
+  emptyInteressados: {
     alignItems: 'center',
     paddingVertical: 20,
   },
@@ -622,9 +737,119 @@ const styles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
-  orcamentosCount: {
+  loadingInteressados: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  interessadosList: {
+    gap: 12,
+  },
+  interessadoItem: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  interessadoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  interessadoProfissional: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  profissionalAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profissionalAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  profissionalNome: {
     fontSize: 15,
-    color: '#374151',
+    fontWeight: '600',
+    color: '#111827',
+  },
+  interesseData: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  contratadoBadge: {
+    backgroundColor: '#d1fae5',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  contratadoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  profissionalBio: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  contatoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  ligarButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+    gap: 6,
+  },
+  ligarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  whatsappButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#25d366',
+    gap: 6,
+  },
+  whatsappButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  contratarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#059669',
+    gap: 6,
+  },
+  contratarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   avaliarButton: {
     flexDirection: 'row',
@@ -673,189 +898,60 @@ const styles = StyleSheet.create({
   profissionalActions: {
     alignItems: 'center',
   },
-  enviarOrcamentoButton: {
+  interesseButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#10b981',
+    backgroundColor: '#25d366',
     padding: 16,
     borderRadius: 12,
     gap: 8,
     width: '100%',
   },
-  enviarOrcamentoText: {
+  interesseButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },
-  orcamentoHint: {
+  interesseHint: {
     marginTop: 12,
     fontSize: 13,
     color: '#6b7280',
     textAlign: 'center',
+    lineHeight: 18,
   },
-  fotosInfo: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  loadingOrcamentos: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  orcamentosList: {
-    gap: 12,
-  },
-  orcamentoItem: {
-    backgroundColor: '#f9fafb',
+  interesseEnviadoCard: {
+    backgroundColor: '#d1fae5',
     borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  orcamentoHeader: {
-    flexDirection: 'row',
+    padding: 20,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 16,
+    width: '100%',
   },
-  orcamentoProfissional: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  profissionalAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profissionalAvatarText: {
+  interesseEnviadoText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
-  },
-  profissionalNome: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  orcamentoData: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  orcamentoStatusBadge: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-  },
-  orcamentoStatusText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  orcamentoValorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  orcamentoValorLabel: {
-    fontSize: 13,
-    color: '#6b7280',
-    marginRight: 6,
-  },
-  orcamentoValor: {
-    fontSize: 18,
-    fontWeight: '700',
     color: '#059669',
+    marginTop: 8,
   },
-  orcamentoPrazoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  orcamentoPrazoLabel: {
+  interesseEnviadoSubtext: {
     fontSize: 13,
-    color: '#6b7280',
-    marginRight: 6,
+    color: '#047857',
+    textAlign: 'center',
+    marginTop: 4,
   },
-  orcamentoPrazo: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  orcamentoMensagem: {
-    fontSize: 14,
-    color: '#4b5563',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  orcamentoActions: {
-    flexDirection: 'row',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 12,
-  },
-  recusarButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#fee2e2',
-    alignItems: 'center',
-  },
-  recusarButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#dc2626',
-  },
-  aceitarButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-  },
-  aceitarButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  contatoActions: {
-    flexDirection: 'row',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 12,
-  },
-  ligarButton: {
-    flex: 1,
+  whatsappButtonLarge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: '#3b82f6',
-    gap: 6,
-  },
-  ligarButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  whatsappButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 8,
     backgroundColor: '#25d366',
-    gap: 6,
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
   },
-  whatsappButtonText: {
-    fontSize: 14,
+  whatsappButtonLargeText: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },

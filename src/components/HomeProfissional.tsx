@@ -16,7 +16,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '@/src/stores/authStore';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { profissionalService } from '@/src/services/profissionalService';
-import { orcamentoService } from '@/src/services/orcamentoService';
+import { interesseService } from '@/src/services/interesseService';
 import { SolicitacaoParaProfissional } from '@/src/types/solicitacao';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -73,7 +73,7 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
 
   const { data: statsProfissional, refetch: refetchStats } = useQuery({
     queryKey: ['profissional-stats'],
-    queryFn: orcamentoService.getStatsProfissional,
+    queryFn: interesseService.getStats,
     staleTime: 0,
     refetchOnMount: 'always',
   });
@@ -197,8 +197,8 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
               <Ionicons name="checkmark-done-outline" size={20} color="#3b82f6" />
             </View>
             <View style={styles.statContent}>
-              <Text style={styles.statNumber}>{statsProfissional?.finalizados || 0}</Text>
-              <Text style={styles.statLabel}>Finalizados</Text>
+              <Text style={styles.statNumber}>{statsProfissional?.contratados || 0}</Text>
+              <Text style={styles.statLabel}>Contratados</Text>
             </View>
           </TouchableOpacity>
         </View>

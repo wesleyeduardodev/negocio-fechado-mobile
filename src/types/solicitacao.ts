@@ -1,5 +1,14 @@
 export type StatusSolicitacao = 'ABERTA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA';
 
+export type Urgencia = 'URGENTE' | 'ESTA_SEMANA' | 'PROXIMAS_SEMANAS' | 'APENAS_ORCANDO';
+
+export const URGENCIA_LABELS: Record<Urgencia, string> = {
+  URGENTE: 'Urgente (hoje/amanha)',
+  ESTA_SEMANA: 'Esta semana',
+  PROXIMAS_SEMANAS: 'Proximas semanas',
+  APENAS_ORCANDO: 'Apenas orcando',
+};
+
 export interface SolicitacaoResumo {
   id: number;
   titulo: string;
@@ -19,12 +28,13 @@ export interface SolicitacaoDetalhe {
   categoriaNome: string;
   categoriaIcone: string;
   status: StatusSolicitacao;
+  urgencia: Urgencia;
   uf: string;
   cidadeIbgeId: number;
   cidadeNome: string;
   bairro: string;
   fotos: string[];
-  totalOrcamentos: number;
+  totalInteresses: number;
   criadoEm: string;
   atualizadoEm: string;
 }
@@ -33,6 +43,7 @@ export interface CriarSolicitacaoRequest {
   categoriaId: number;
   titulo: string;
   descricao: string;
+  urgencia: Urgencia;
   fotos?: string[];
 }
 
@@ -58,11 +69,13 @@ export interface SolicitacaoParaProfissional {
   titulo: string;
   descricao: string;
   clienteNome: string;
+  clienteCelular: string;
   categoriaNome: string;
   categoriaIcone: string;
   bairro: string;
   cidadeNome: string;
   uf: string;
+  urgencia: Urgencia;
   quantidadeFotos: number;
   criadoEm: string;
 }
