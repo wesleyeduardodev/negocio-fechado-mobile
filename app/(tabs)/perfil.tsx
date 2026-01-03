@@ -83,7 +83,7 @@ export default function PerfilScreen() {
     {
       icon: 'chatbubbles-outline',
       label: 'Meus Orcamentos',
-      onPress: () => {},
+      onPress: () => router.push('/meus-orcamentos'),
     },
     {
       icon: 'bar-chart-outline',

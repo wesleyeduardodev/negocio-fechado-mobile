@@ -13,7 +13,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { solicitacaoService } from '@/src/services/solicitacaoService';
+import { orcamentoService } from '@/src/services/orcamentoService';
 import { StatusSolicitacao } from '@/src/types/solicitacao';
+import { OrcamentoResumo, StatusOrcamento } from '@/src/types/orcamento';
 
 type SearchParams = {
   id: string;
@@ -42,6 +44,13 @@ const STATUS_CONFIG: Record<StatusSolicitacao, { label: string; color: string; b
   CANCELADA: { label: 'Cancelada', color: '#dc2626', bg: '#fee2e2' },
 };
 
+const STATUS_ORCAMENTO_CONFIG: Record<StatusOrcamento, { label: string; color: string; bg: string }> = {
+  PENDENTE: { label: 'Pendente', color: '#d97706', bg: '#fef3c7' },
+  ACEITO: { label: 'Aceito', color: '#059669', bg: '#d1fae5' },
+  RECUSADO: { label: 'Recusado', color: '#dc2626', bg: '#fee2e2' },
+  EXPIRADO: { label: 'Expirado', color: '#6b7280', bg: '#f3f4f6' },
+};
+
 export default function SolicitacaoDetalheScreen() {
   const { id, modo } = useLocalSearchParams<SearchParams>();
   const queryClient = useQueryClient();
@@ -53,6 +62,39 @@ export default function SolicitacaoDetalheScreen() {
       ? solicitacaoService.buscarDisponivelPorId(Number(id))
       : solicitacaoService.buscarPorId(Number(id)),
     enabled: !!id,
+  });
+
+  const { data: orcamentos, isLoading: isLoadingOrcamentos } = useQuery({
+    queryKey: ['orcamentos', id],
+    queryFn: () => orcamentoService.listarPorSolicitacao(Number(id)),
+    enabled: !!id && !isProfissionalMode,
+  });
+
+  const aceitarMutation = useMutation({
+    mutationFn: (orcamentoId: number) => orcamentoService.aceitar(orcamentoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['solicitacao', id] });
+      queryClient.invalidateQueries({ queryKey: ['orcamentos', id] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes-stats'] });
+      Alert.alert('Sucesso', 'Orcamento aceito! A solicitacao esta agora em andamento.');
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erro ao aceitar orcamento';
+      Alert.alert('Erro', message);
+    },
+  });
+
+  const recusarMutation = useMutation({
+    mutationFn: (orcamentoId: number) => orcamentoService.recusar(orcamentoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orcamentos', id] });
+      Alert.alert('Sucesso', 'Orcamento recusado.');
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erro ao recusar orcamento';
+      Alert.alert('Erro', message);
+    },
   });
 
   const cancelarMutation = useMutation({
@@ -80,8 +122,38 @@ export default function SolicitacaoDetalheScreen() {
     );
   };
 
+  const handleAceitarOrcamento = (orcamento: OrcamentoResumo) => {
+    Alert.alert(
+      'Aceitar Orcamento',
+      `Aceitar orcamento de ${orcamento.profissionalNome} no valor de ${formatCurrency(orcamento.valor)}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Aceitar', onPress: () => aceitarMutation.mutate(orcamento.id) },
+      ]
+    );
+  };
+
+  const handleRecusarOrcamento = (orcamento: OrcamentoResumo) => {
+    Alert.alert(
+      'Recusar Orcamento',
+      `Recusar orcamento de ${orcamento.profissionalNome}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Recusar', style: 'destructive', onPress: () => recusarMutation.mutate(orcamento.id) },
+      ]
+    );
+  };
+
+  const handleEnviarOrcamento = () => {
+    router.push(`/enviar-orcamento?solicitacaoId=${id}`);
+  };
+
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
     return ICON_MAP[icone] || 'ellipse';
+  };
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
   const formatDate = (dateString: string) => {
@@ -181,8 +253,14 @@ export default function SolicitacaoDetalheScreen() {
 
         {!isProfissionalMode && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Orcamentos</Text>
-            {solicitacao.totalOrcamentos === 0 ? (
+            <Text style={styles.cardTitle}>
+              Orcamentos {orcamentos && orcamentos.length > 0 ? `(${orcamentos.length})` : ''}
+            </Text>
+            {isLoadingOrcamentos ? (
+              <View style={styles.loadingOrcamentos}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+              </View>
+            ) : !orcamentos || orcamentos.length === 0 ? (
               <View style={styles.emptyOrcamentos}>
                 <Ionicons name="document-text-outline" size={40} color="#d1d5db" />
                 <Text style={styles.emptyText}>Nenhum orcamento recebido</Text>
@@ -191,9 +269,62 @@ export default function SolicitacaoDetalheScreen() {
                 </Text>
               </View>
             ) : (
-              <Text style={styles.orcamentosCount}>
-                {solicitacao.totalOrcamentos} orcamento(s) recebido(s)
-              </Text>
+              <View style={styles.orcamentosList}>
+                {orcamentos.map((orcamento) => {
+                  const statusConfig = STATUS_ORCAMENTO_CONFIG[orcamento.status];
+                  return (
+                    <View key={orcamento.id} style={styles.orcamentoItem}>
+                      <View style={styles.orcamentoHeader}>
+                        <View style={styles.orcamentoProfissional}>
+                          <View style={styles.profissionalAvatar}>
+                            <Text style={styles.profissionalAvatarText}>
+                              {orcamento.profissionalNome.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View>
+                            <Text style={styles.profissionalNome}>{orcamento.profissionalNome}</Text>
+                            <Text style={styles.orcamentoData}>
+                              {formatDate(orcamento.criadoEm)}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={[styles.orcamentoStatusBadge, { backgroundColor: statusConfig.bg }]}>
+                          <Text style={[styles.orcamentoStatusText, { color: statusConfig.color }]}>
+                            {statusConfig.label}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.orcamentoValorRow}>
+                        <Text style={styles.orcamentoValorLabel}>Valor:</Text>
+                        <Text style={styles.orcamentoValor}>{formatCurrency(orcamento.valor)}</Text>
+                      </View>
+                      <View style={styles.orcamentoPrazoRow}>
+                        <Text style={styles.orcamentoPrazoLabel}>Prazo:</Text>
+                        <Text style={styles.orcamentoPrazo}>{orcamento.prazoEstimado}</Text>
+                      </View>
+                      <Text style={styles.orcamentoMensagem}>{orcamento.mensagem}</Text>
+                      {orcamento.status === 'PENDENTE' && solicitacao.status === 'ABERTA' && (
+                        <View style={styles.orcamentoActions}>
+                          <TouchableOpacity
+                            style={styles.recusarButton}
+                            onPress={() => handleRecusarOrcamento(orcamento)}
+                            disabled={recusarMutation.isPending}
+                          >
+                            <Text style={styles.recusarButtonText}>Recusar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.aceitarButton}
+                            onPress={() => handleAceitarOrcamento(orcamento)}
+                            disabled={aceitarMutation.isPending}
+                          >
+                            <Text style={styles.aceitarButtonText}>Aceitar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
             )}
           </View>
         )}
@@ -209,7 +340,7 @@ export default function SolicitacaoDetalheScreen() {
 
         {isProfissionalMode ? (
           <View style={styles.profissionalActions}>
-            <TouchableOpacity style={styles.enviarOrcamentoButton}>
+            <TouchableOpacity style={styles.enviarOrcamentoButton} onPress={handleEnviarOrcamento}>
               <Ionicons name="send" size={20} color="#fff" />
               <Text style={styles.enviarOrcamentoText}>Enviar Orcamento</Text>
             </TouchableOpacity>
@@ -430,5 +561,129 @@ const styles = StyleSheet.create({
   fotosInfo: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  loadingOrcamentos: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  orcamentosList: {
+    gap: 12,
+  },
+  orcamentoItem: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  orcamentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  orcamentoProfissional: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  profissionalAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profissionalAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  profissionalNome: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  orcamentoData: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
+  },
+  orcamentoStatusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  orcamentoStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  orcamentoValorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  orcamentoValorLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginRight: 6,
+  },
+  orcamentoValor: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#059669',
+  },
+  orcamentoPrazoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  orcamentoPrazoLabel: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginRight: 6,
+  },
+  orcamentoPrazo: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  orcamentoMensagem: {
+    fontSize: 14,
+    color: '#4b5563',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  orcamentoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 12,
+  },
+  recusarButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#fee2e2',
+    alignItems: 'center',
+  },
+  recusarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc2626',
+  },
+  aceitarButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+  },
+  aceitarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
