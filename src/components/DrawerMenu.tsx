@@ -9,6 +9,7 @@ import {
   Pressable,
   Switch,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
@@ -181,107 +182,113 @@ export default function DrawerMenu({ isOpen, onClose, isProfissional }: DrawerMe
             },
           ]}
         >
-          <View style={styles.header}>
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.header}>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.userName}>{usuario?.nome || 'Usuario'}</Text>
+              <Text style={styles.userPhone}>{usuario?.celular}</Text>
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={14} color="#6b7280" />
+                <Text style={styles.locationText}>
+                  {usuario?.bairro}, {usuario?.cidadeNome}
                 </Text>
               </View>
             </View>
-            <Text style={styles.userName}>{usuario?.nome || 'Usuario'}</Text>
-            <Text style={styles.userPhone}>{usuario?.celular}</Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location-outline" size={14} color="#6b7280" />
-              <Text style={styles.locationText}>
-                {usuario?.bairro}, {usuario?.cidadeNome}
-              </Text>
-            </View>
-          </View>
 
-          <View style={styles.modeSection}>
-            <View style={styles.modeRow}>
-              <View style={styles.modeInfo}>
-                <Ionicons
-                  name={modoAtual === 'profissional' ? 'briefcase' : 'person'}
-                  size={20}
-                  color={modoAtual === 'profissional' ? '#10b981' : '#3b82f6'}
+            <View style={styles.modeSection}>
+              <View style={styles.modeRow}>
+                <View style={styles.modeInfo}>
+                  <Ionicons
+                    name={modoAtual === 'profissional' ? 'briefcase' : 'person'}
+                    size={20}
+                    color={modoAtual === 'profissional' ? '#10b981' : '#3b82f6'}
+                  />
+                  <Text style={styles.modeLabel}>
+                    Modo {modoAtual === 'profissional' ? 'Profissional' : 'Cliente'}
+                  </Text>
+                </View>
+                <Switch
+                  value={modoAtual === 'profissional'}
+                  onValueChange={handleModoChange}
+                  trackColor={{ false: '#dbeafe', true: '#d1fae5' }}
+                  thumbColor={modoAtual === 'profissional' ? '#10b981' : '#3b82f6'}
                 />
-                <Text style={styles.modeLabel}>
-                  Modo {modoAtual === 'profissional' ? 'Profissional' : 'Cliente'}
-                </Text>
               </View>
-              <Switch
-                value={modoAtual === 'profissional'}
-                onValueChange={handleModoChange}
-                trackColor={{ false: '#dbeafe', true: '#d1fae5' }}
-                thumbColor={modoAtual === 'profissional' ? '#10b981' : '#3b82f6'}
-              />
+              {!isProfissional && (
+                <TouchableOpacity
+                  style={styles.becomeProfessionalButton}
+                  onPress={() => {
+                    onClose();
+                    router.push('/tornar-se-profissional');
+                  }}
+                >
+                  <Text style={styles.becomeProfessionalText}>Quero ser profissional</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#3b82f6" />
+                </TouchableOpacity>
+              )}
             </View>
-            {!isProfissional && (
-              <TouchableOpacity
-                style={styles.becomeProfessionalButton}
-                onPress={() => {
-                  onClose();
-                  router.push('/tornar-se-profissional');
-                }}
-              >
-                <Text style={styles.becomeProfessionalText}>Quero ser profissional</Text>
-                <Ionicons name="arrow-forward" size={16} color="#3b82f6" />
-              </TouchableOpacity>
-            )}
-          </View>
 
-          <View style={styles.menuSection}>
-            {menuItemsCliente.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.menuItem}
-                onPress={item.onPress}
-              >
-                <Ionicons name={item.icon} size={22} color="#374151" />
-                <Text style={styles.menuItemLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {isProfissional && modoAtual === 'profissional' && (
             <View style={styles.menuSection}>
-              <Text style={styles.sectionTitle}>Area Profissional</Text>
-              {menuItemsProfissional.map((item, index) => (
+              {menuItemsCliente.map((item, index) => (
                 <TouchableOpacity
                   key={index}
                   style={styles.menuItem}
                   onPress={item.onPress}
                 >
-                  <Ionicons name={item.icon} size={22} color="#10b981" />
+                  <Ionicons name={item.icon} size={22} color="#374151" />
                   <Text style={styles.menuItemLabel}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          )}
 
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>Configuracoes</Text>
-            {menuItemsGeral.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.menuItem}
-                onPress={item.onPress}
-              >
-                <Ionicons name={item.icon} size={22} color="#6b7280" />
-                <Text style={styles.menuItemLabel}>{item.label}</Text>
+            {isProfissional && modoAtual === 'profissional' && (
+              <View style={styles.menuSection}>
+                <Text style={styles.sectionTitle}>Area Profissional</Text>
+                {menuItemsProfissional.map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.menuItem}
+                    onPress={item.onPress}
+                  >
+                    <Ionicons name={item.icon} size={22} color="#10b981" />
+                    <Text style={styles.menuItemLabel}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.menuSection}>
+              <Text style={styles.sectionTitle}>Configuracoes</Text>
+              {menuItemsGeral.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.menuItem}
+                  onPress={item.onPress}
+                >
+                  <Ionicons name={item.icon} size={22} color="#6b7280" />
+                  <Text style={styles.menuItemLabel}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={styles.footer}>
+              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+                <Text style={styles.logoutText}>Sair da Conta</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={22} color="#ef4444" />
-              <Text style={styles.logoutText}>Sair da Conta</Text>
-            </TouchableOpacity>
-            <Text style={styles.version}>Versao 1.0.0</Text>
-          </View>
+              <Text style={styles.version}>Versao 1.0.0</Text>
+            </View>
+          </ScrollView>
         </Animated.View>
       </View>
     </Modal>
@@ -306,6 +313,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: DRAWER_WIDTH,
     backgroundColor: '#fff',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     padding: 20,
