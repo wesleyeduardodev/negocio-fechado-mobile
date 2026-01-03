@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -11,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { profissionalService } from '@/src/services/profissionalService';
 
@@ -48,11 +50,21 @@ export default function PerfilProfissionalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const perfilId = Number(id);
 
-  const { data: perfil, isLoading, isError } = useQuery({
+  const { data: perfil, isLoading, isError, refetch } = useQuery({
     queryKey: ['profissional', perfilId],
     queryFn: () => profissionalService.buscarPorId(perfilId),
     enabled: !!perfilId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      if (perfilId) {
+        refetch();
+      }
+    }, [refetch, perfilId])
+  );
 
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
     return ICON_MAP[icone] || 'ellipse';

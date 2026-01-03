@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { orcamentoService } from '@/src/services/orcamentoService';
 import { OrcamentoEnviado, StatusOrcamento } from '@/src/types/orcamento';
@@ -56,7 +57,15 @@ export default function MeusOrcamentosScreen() {
       if (lastPage.last) return undefined;
       return lastPage.number + 1;
     },
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const orcamentos = data?.pages.flatMap((page) => page.content) ?? [];
 

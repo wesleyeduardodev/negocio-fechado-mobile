@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { categoriaService } from '@/src/services/categoriaService';
 import { profissionalService } from '@/src/services/profissionalService';
@@ -57,9 +58,11 @@ export default function MeuPerfilProfissionalScreen() {
   const [bio, setBio] = useState('');
   const [ativo, setAtivo] = useState(true);
 
-  const { data: meuPerfil, isLoading: isLoadingPerfil } = useQuery({
+  const { data: meuPerfil, isLoading: isLoadingPerfil, refetch: refetchPerfil } = useQuery({
     queryKey: ['meu-perfil-profissional'],
     queryFn: profissionalService.buscarMeuPerfil,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: categorias, isLoading: isLoadingCategorias } = useQuery({
@@ -67,6 +70,12 @@ export default function MeuPerfilProfissionalScreen() {
     queryFn: categoriaService.listar,
     staleTime: 1000 * 60 * 5,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchPerfil();
+    }, [refetchPerfil])
+  );
 
   useEffect(() => {
     if (meuPerfil) {

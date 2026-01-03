@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useAuthStore, ModoApp } from '@/src/stores/authStore';
 import { profissionalService } from '@/src/services/profissionalService';
@@ -20,15 +22,26 @@ import { solicitacaoService } from '@/src/services/solicitacaoService';
 export default function PerfilScreen() {
   const { usuario, logout, modoAtual, setModo } = useAuthStore();
 
-  const { data: isProfissional, isLoading: isLoadingProfissional } = useQuery({
+  const { data: isProfissional, isLoading: isLoadingProfissional, refetch: refetchProfissionalStatus } = useQuery({
     queryKey: ['profissional-status'],
     queryFn: profissionalService.isProfissional,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
-  const { data: stats } = useQuery({
+  const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['solicitacoes-stats'],
     queryFn: solicitacaoService.getStats,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchProfissionalStatus();
+      refetchStats();
+    }, [refetchProfissionalStatus, refetchStats])
+  );
 
   const handleLogout = () => {
     Alert.alert(

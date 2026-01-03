@@ -70,12 +70,14 @@ export default function HomeCliente() {
   const { data: solicitacoesData, isLoading: isLoadingSolicitacoes, refetch: refetchSolicitacoes } = useQuery({
     queryKey: ['solicitacoes'],
     queryFn: () => solicitacaoService.listar(0, 5),
+    staleTime: 0,
     refetchOnMount: 'always',
   });
 
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['solicitacoes-stats'],
     queryFn: solicitacaoService.getStats,
+    staleTime: 0,
     refetchOnMount: 'always',
   });
 

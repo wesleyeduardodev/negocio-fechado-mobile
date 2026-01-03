@@ -50,6 +50,8 @@ export default function EnviarOrcamentoScreen() {
     queryKey: ['solicitacao', solicitacaoId, true],
     queryFn: () => solicitacaoService.buscarDisponivelPorId(Number(solicitacaoId)),
     enabled: !!solicitacaoId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const enviarMutation = useMutation({

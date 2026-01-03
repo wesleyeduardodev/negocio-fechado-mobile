@@ -11,6 +11,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { orcamentoService } from '@/src/services/orcamentoService';
@@ -56,19 +58,33 @@ export default function SolicitacaoDetalheScreen() {
   const queryClient = useQueryClient();
   const isProfissionalMode = modo === 'profissional';
 
-  const { data: solicitacao, isLoading, error } = useQuery({
+  const { data: solicitacao, isLoading, error, refetch: refetchSolicitacao } = useQuery({
     queryKey: ['solicitacao', id, isProfissionalMode],
     queryFn: () => isProfissionalMode
       ? solicitacaoService.buscarDisponivelPorId(Number(id))
       : solicitacaoService.buscarPorId(Number(id)),
     enabled: !!id,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
-  const { data: orcamentos, isLoading: isLoadingOrcamentos } = useQuery({
+  const { data: orcamentos, isLoading: isLoadingOrcamentos, refetch: refetchOrcamentos } = useQuery({
     queryKey: ['orcamentos', id],
     queryFn: () => orcamentoService.listarPorSolicitacao(Number(id)),
     enabled: !!id && !isProfissionalMode,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+
+  // Refetch ao voltar para a tela
+  useFocusEffect(
+    useCallback(() => {
+      refetchSolicitacao();
+      if (!isProfissionalMode) {
+        refetchOrcamentos();
+      }
+    }, [refetchSolicitacao, refetchOrcamentos, isProfissionalMode])
+  );
 
   const aceitarMutation = useMutation({
     mutationFn: (orcamentoId: number) => orcamentoService.aceitar(orcamentoId),

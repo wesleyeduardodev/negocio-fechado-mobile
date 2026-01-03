@@ -53,26 +53,30 @@ export default function HomeProfissional() {
   const { usuario } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
-  const { data: meuPerfil } = useQuery({
+  const { data: meuPerfil, refetch: refetchPerfil } = useQuery({
     queryKey: ['meu-perfil-profissional'],
     queryFn: profissionalService.buscarMeuPerfil,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: solicitacoesDisponiveis, refetch: refetchDisponiveis, isLoading } = useQuery({
     queryKey: ['solicitacoes-disponiveis'],
     queryFn: () => solicitacaoService.listarDisponiveis(0, 10),
+    staleTime: 0,
     refetchOnMount: 'always',
   });
 
   useFocusEffect(
     useCallback(() => {
       refetchDisponiveis();
-    }, [refetchDisponiveis])
+      refetchPerfil();
+    }, [refetchDisponiveis, refetchPerfil])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await refetchDisponiveis();
+    await Promise.all([refetchDisponiveis(), refetchPerfil()]);
     setRefreshing(false);
   };
 
