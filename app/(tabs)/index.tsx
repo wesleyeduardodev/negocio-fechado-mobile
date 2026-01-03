@@ -2,9 +2,10 @@ import { StyleSheet, Text, View, TouchableOpacity, ScrollView, RefreshControl, A
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useAuthStore } from '@/src/stores/authStore';
 import { categoriaService } from '@/src/services/categoriaService';
@@ -62,12 +63,22 @@ export default function HomeScreen() {
   const { data: solicitacoesData, isLoading: isLoadingSolicitacoes, refetch: refetchSolicitacoes } = useQuery({
     queryKey: ['solicitacoes'],
     queryFn: () => solicitacaoService.listar(0, 5),
+    refetchOnMount: 'always',
   });
 
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['solicitacoes-stats'],
     queryFn: solicitacaoService.getStats,
+    refetchOnMount: 'always',
   });
+
+  // Refetch solicitacoes when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      refetchSolicitacoes();
+      refetchStats();
+    }, [refetchSolicitacoes, refetchStats])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -42,9 +42,8 @@ export default function CriarSolicitacaoScreen() {
   const params = useLocalSearchParams<{ categoriaId?: string }>();
   const queryClient = useQueryClient();
 
-  const [categoriaId, setCategoriaId] = useState<number | null>(
-    params.categoriaId ? Number(params.categoriaId) : null
-  );
+  const initialCategoriaId = params.categoriaId ? Number(params.categoriaId) : null;
+  const [categoriaId, setCategoriaId] = useState<number | null>(initialCategoriaId);
   const [categoriaNome, setCategoriaNome] = useState('');
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
@@ -55,6 +54,16 @@ export default function CriarSolicitacaoScreen() {
     queryFn: categoriaService.listar,
     staleTime: 1000 * 60 * 5,
   });
+
+  // Pre-select category name when categorias are loaded and we have an initial categoriaId
+  useEffect(() => {
+    if (categorias && initialCategoriaId && !categoriaNome) {
+      const categoria = categorias.find(c => c.id === initialCategoriaId);
+      if (categoria) {
+        setCategoriaNome(categoria.nome);
+      }
+    }
+  }, [categorias, initialCategoriaId, categoriaNome]);
 
   const criarMutation = useMutation({
     mutationFn: solicitacaoService.criar,
