@@ -164,6 +164,10 @@ export default function SolicitacaoDetalheScreen() {
     );
   };
 
+  const handleAvaliar = () => {
+    router.push(`/avaliar/${id}`);
+  };
+
   const handleAceitarOrcamento = (orcamento: OrcamentoResumo) => {
     Alert.alert(
       'Aceitar Orcamento',
@@ -425,6 +429,15 @@ export default function SolicitacaoDetalheScreen() {
           </View>
         ) : (
           <>
+            {solicitacao.status === 'CONCLUIDA' && (
+              <TouchableOpacity
+                style={styles.avaliarButton}
+                onPress={handleAvaliar}
+              >
+                <Ionicons name="star" size={20} color="#fff" />
+                <Text style={styles.avaliarButtonText}>Avaliar Profissional</Text>
+              </TouchableOpacity>
+            )}
             {solicitacao.status === 'EM_ANDAMENTO' && (
               <TouchableOpacity
                 style={styles.concluirButton}
@@ -612,6 +625,21 @@ const styles = StyleSheet.create({
   orcamentosCount: {
     fontSize: 15,
     color: '#374151',
+  },
+  avaliarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f59e0b',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  avaliarButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   concluirButton: {
     flexDirection: 'row',
