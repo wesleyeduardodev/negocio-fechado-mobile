@@ -346,20 +346,6 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
           <Ionicons name="chevron-forward" size={20} color="#10b981" />
         </TouchableOpacity>
 
-        {meusTrabalhos && meusTrabalhos.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Meus Trabalhos</Text>
-              <View style={styles.trabalhosCount}>
-                <Text style={styles.trabalhosCountText}>{meusTrabalhos.length}</Text>
-              </View>
-            </View>
-            <View style={styles.trabalhosList}>
-              {meusTrabalhos.map(renderTrabalho)}
-            </View>
-          </View>
-        )}
-
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Solicitacoes Disponiveis</Text>
@@ -388,6 +374,20 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
             </View>
           )}
         </View>
+
+        {meusTrabalhos && meusTrabalhos.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Meus Trabalhos</Text>
+              <View style={styles.trabalhosCount}>
+                <Text style={styles.trabalhosCountText}>{meusTrabalhos.length}</Text>
+              </View>
+            </View>
+            <View style={styles.trabalhosList}>
+              {meusTrabalhos.map(renderTrabalho)}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
