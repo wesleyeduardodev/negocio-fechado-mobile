@@ -8,6 +8,7 @@ export interface OrcamentoResumo {
   status: StatusOrcamento;
   profissionalNome: string;
   profissionalId: number;
+  profissionalCelular: string | null;
   criadoEm: string;
 }
 

@@ -6,6 +6,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -164,6 +165,21 @@ export default function SolicitacaoDetalheScreen() {
     router.push(`/enviar-orcamento?solicitacaoId=${id}`);
   };
 
+  const handleLigar = (celular: string) => {
+    const phoneUrl = `tel:+55${celular}`;
+    Linking.openURL(phoneUrl).catch(() => {
+      Alert.alert('Erro', 'Nao foi possivel abrir o discador');
+    });
+  };
+
+  const handleWhatsApp = (celular: string, profissionalNome: string) => {
+    const mensagem = `Ola ${profissionalNome}, aceite seu orcamento para "${solicitacao?.titulo}" no app Negocio Fechado!`;
+    const whatsappUrl = `https://wa.me/55${celular}?text=${encodeURIComponent(mensagem)}`;
+    Linking.openURL(whatsappUrl).catch(() => {
+      Alert.alert('Erro', 'Nao foi possivel abrir o WhatsApp');
+    });
+  };
+
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
     return ICON_MAP[icone] || 'ellipse';
   };
@@ -319,6 +335,24 @@ export default function SolicitacaoDetalheScreen() {
                         <Text style={styles.orcamentoPrazo}>{orcamento.prazoEstimado}</Text>
                       </View>
                       <Text style={styles.orcamentoMensagem}>{orcamento.mensagem}</Text>
+                      {orcamento.status === 'ACEITO' && orcamento.profissionalCelular && (
+                        <View style={styles.contatoActions}>
+                          <TouchableOpacity
+                            style={styles.ligarButton}
+                            onPress={() => handleLigar(orcamento.profissionalCelular!)}
+                          >
+                            <Ionicons name="call" size={18} color="#fff" />
+                            <Text style={styles.ligarButtonText}>Ligar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.whatsappButton}
+                            onPress={() => handleWhatsApp(orcamento.profissionalCelular!, orcamento.profissionalNome)}
+                          >
+                            <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+                            <Text style={styles.whatsappButtonText}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                       {orcamento.status === 'PENDENTE' && solicitacao.status === 'ABERTA' && (
                         <View style={styles.orcamentoActions}>
                           <TouchableOpacity
@@ -698,6 +732,43 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   aceitarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  contatoActions: {
+    flexDirection: 'row',
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 12,
+  },
+  ligarButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#3b82f6',
+    gap: 6,
+  },
+  ligarButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  whatsappButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#25d366',
+    gap: 6,
+  },
+  whatsappButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
