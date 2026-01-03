@@ -21,3 +21,22 @@ export interface ProfissionalStats {
   contratados: number;
   emNegociacao: number;
 }
+
+export interface MeuTrabalho {
+  interesseId: number;
+  solicitacaoId: number;
+  solicitacaoTitulo: string;
+  solicitacaoDescricao: string;
+  categoriaNome: string;
+  categoriaIcone: string;
+  status: 'ABERTA' | 'EM_ANDAMENTO' | 'CONCLUIDA' | 'CANCELADA';
+  clienteNome: string;
+  clienteCelular: string;
+  clienteBairro: string;
+  clienteCidade: string;
+  clienteUf: string;
+  contratadoEm: string;
+  avaliacaoNota: number | null;
+  avaliacaoComentario: string | null;
+  avaliacaoData: string | null;
+}

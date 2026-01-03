@@ -1,5 +1,5 @@
 import { api } from './api';
-import { Interesse, CriarInteresseRequest, ProfissionalStats } from '@/src/types/interesse';
+import { Interesse, CriarInteresseRequest, ProfissionalStats, MeuTrabalho } from '@/src/types/interesse';
 
 export const interesseService = {
   criar: async (request: CriarInteresseRequest): Promise<Interesse> => {
@@ -22,6 +22,11 @@ export const interesseService = {
 
   getStats: async (): Promise<ProfissionalStats> => {
     const response = await api.get<ProfissionalStats>('/interesses/stats');
+    return response.data;
+  },
+
+  listarMeusTrabalhos: async (): Promise<MeuTrabalho[]> => {
+    const response = await api.get<MeuTrabalho[]>('/interesses/meus-trabalhos');
     return response.data;
   },
 };
