@@ -25,4 +25,8 @@ export const usuarioService = {
     const response = await api.post<UsuarioResponse>('/usuarios/me/foto', data);
     return response.data;
   },
+
+  atualizarModo: async (modo: 'cliente' | 'profissional'): Promise<void> => {
+    await api.patch('/usuarios/me/modo', { modo });
+  },
 };

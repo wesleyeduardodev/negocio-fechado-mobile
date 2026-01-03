@@ -7,6 +7,7 @@ export interface UsuarioAuth {
   cidadeIbgeId: number;
   cidadeNome: string;
   bairro: string;
+  modoPreferido: 'cliente' | 'profissional';
 }
 
 export interface AuthResponse {
