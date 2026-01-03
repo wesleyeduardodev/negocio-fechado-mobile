@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -57,9 +56,14 @@ const STATUS_CONFIG: Record<StatusSolicitacao, { label: string; color: string; b
   CANCELADA: { label: 'Cancelada', color: '#dc2626', bg: '#fee2e2' },
 };
 
-export default function HomeCliente() {
+interface HomeClienteProps {
+  onOpenDrawer?: () => void;
+}
+
+export default function HomeCliente({ onOpenDrawer }: HomeClienteProps) {
   const { usuario } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [showAllCategorias, setShowAllCategorias] = useState(false);
 
   const { data: categorias, isLoading: isLoadingCategorias, refetch: refetchCategorias } = useQuery({
     queryKey: ['categorias'],
@@ -69,14 +73,7 @@ export default function HomeCliente() {
 
   const { data: solicitacoesData, isLoading: isLoadingSolicitacoes, refetch: refetchSolicitacoes } = useQuery({
     queryKey: ['solicitacoes'],
-    queryFn: () => solicitacaoService.listar(0, 5),
-    staleTime: 0,
-    refetchOnMount: 'always',
-  });
-
-  const { data: stats, refetch: refetchStats } = useQuery({
-    queryKey: ['solicitacoes-stats'],
-    queryFn: solicitacaoService.getStats,
+    queryFn: () => solicitacaoService.listar(0, 10),
     staleTime: 0,
     refetchOnMount: 'always',
   });
@@ -84,13 +81,12 @@ export default function HomeCliente() {
   useFocusEffect(
     useCallback(() => {
       refetchSolicitacoes();
-      refetchStats();
-    }, [refetchSolicitacoes, refetchStats])
+    }, [refetchSolicitacoes])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchCategorias(), refetchSolicitacoes(), refetchStats()]);
+    await Promise.all([refetchCategorias(), refetchSolicitacoes()]);
     setRefreshing(false);
   };
 
@@ -102,8 +98,17 @@ export default function HomeCliente() {
     return ICON_COLORS[icone] || { bg: '#f3f4f6', icon: '#6b7280' };
   };
 
-  const formatDate = (dateString: string) => {
+  const formatRelativeDate = (dateString: string) => {
     const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return 'Agora';
+    if (diffHours < 24) return `${diffHours}h atras`;
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays < 7) return `${diffDays} dias atras`;
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
@@ -140,29 +145,31 @@ export default function HomeCliente() {
         </View>
         <View style={styles.solicitacaoInfo}>
           <Text style={styles.solicitacaoTitulo} numberOfLines={1}>{solicitacao.titulo}</Text>
-          <Text style={styles.solicitacaoCategoria}>{solicitacao.categoriaNome}</Text>
-        </View>
-        <View style={styles.solicitacaoRight}>
-          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
-            <Text style={[styles.statusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
+          <View style={styles.solicitacaoMeta}>
+            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+              <Text style={[styles.statusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
+            </View>
+            <Text style={styles.solicitacaoData}>{formatRelativeDate(solicitacao.criadoEm)}</Text>
           </View>
-          <Text style={styles.solicitacaoData}>{formatDate(solicitacao.criadoEm)}</Text>
         </View>
+        <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
       </TouchableOpacity>
     );
   };
 
+  const categoriasToShow = showAllCategorias ? categorias : categorias?.slice(0, 8);
+  const hasMoreCategorias = categorias && categorias.length > 8;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.modeBadge}>
-            <Ionicons name="person" size={14} color="#3b82f6" />
-            <Text style={styles.modeBadgeText}>Modo Cliente</Text>
-          </View>
-          <Text style={styles.userName}>{usuario?.nome?.split(' ')[0] || 'Usuario'}</Text>
-        </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity style={styles.headerButton} onPress={onOpenDrawer}>
+          <Ionicons name="menu" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {usuario?.nome?.split(' ')[0] || 'Usuario'} - Cliente
+        </Text>
+        <TouchableOpacity style={styles.headerButton}>
           <Ionicons name="notifications-outline" size={24} color="#374151" />
         </TouchableOpacity>
       </View>
@@ -175,35 +182,16 @@ export default function HomeCliente() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3b82f6']} />
         }
       >
-        <LinearGradient
-          colors={['#3b82f6', '#1d4ed8']}
-          style={styles.banner}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.bannerContent}>
-            <View style={styles.bannerIcon}>
-              <Ionicons name="briefcase" size={32} color="#fff" />
-            </View>
-            <View style={styles.bannerText}>
-              <Text style={styles.bannerTitle}>Negocio Fechado</Text>
-              <Text style={styles.bannerSubtitle}>
-                Encontre profissionais de confianca na sua regiao
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.locationCard}>
-          <Ionicons name="location" size={20} color="#3b82f6" />
-          <Text style={styles.locationText}>
-            {usuario?.bairro}, {usuario?.cidadeNome} - {usuario?.uf}
-          </Text>
-        </View>
-
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Categorias</Text>
+            {hasMoreCategorias && (
+              <TouchableOpacity onPress={() => setShowAllCategorias(!showAllCategorias)}>
+                <Text style={styles.seeAllText}>
+                  {showAllCategorias ? 'Ver menos' : 'Ver todas'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {isLoadingCategorias ? (
@@ -212,55 +200,22 @@ export default function HomeCliente() {
             </View>
           ) : (
             <View style={styles.categoriasGrid}>
-              {categorias?.slice(0, 8).map(renderCategoria)}
+              {categoriasToShow?.map(renderCategoria)}
             </View>
           )}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitleNoMargin}>Acoes Rapidas</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/criar-solicitacao')}>
-              <View style={[styles.actionIcon, { backgroundColor: '#dbeafe' }]}>
-                <Ionicons name="add-circle-outline" size={28} color="#3b82f6" />
-              </View>
-              <Text style={styles.actionText}>Nova Solicitacao</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard}>
-              <View style={[styles.actionIcon, { backgroundColor: '#fef3c7' }]}>
-                <Ionicons name="time-outline" size={28} color="#f59e0b" />
-              </View>
-              <Text style={styles.actionText}>Em Andamento</Text>
-              <Text style={styles.actionCount}>{stats?.emAndamento || 0}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard}>
-              <View style={[styles.actionIcon, { backgroundColor: '#d1fae5' }]}>
-                <Ionicons name="checkmark-circle-outline" size={28} color="#10b981" />
-              </View>
-              <Text style={styles.actionText}>Concluidas</Text>
-              <Text style={styles.actionCount}>{stats?.concluidas || 0}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard}>
-              <View style={[styles.actionIcon, { backgroundColor: '#fce7f3' }]}>
-                <Ionicons name="star-outline" size={28} color="#ec4899" />
-              </View>
-              <Text style={styles.actionText}>Avaliacoes</Text>
-              <Text style={styles.actionCount}>0</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <TouchableOpacity
+          style={styles.novaSolicitacaoButton}
+          onPress={() => router.push('/criar-solicitacao')}
+        >
+          <Ionicons name="add-circle" size={24} color="#fff" />
+          <Text style={styles.novaSolicitacaoText}>Nova Solicitacao</Text>
+        </TouchableOpacity>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitleNoMargin}>Minhas Solicitacoes</Text>
-            {solicitacoesData && solicitacoesData.content.length > 0 && (
-              <TouchableOpacity>
-                <Text style={styles.seeAllText}>Ver todas</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.sectionTitle}>Minhas Solicitacoes</Text>
           </View>
 
           {isLoadingSolicitacoes ? (
@@ -273,15 +228,11 @@ export default function HomeCliente() {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="document-text-outline" size={64} color="#d1d5db" />
+              <Ionicons name="document-text-outline" size={56} color="#d1d5db" />
               <Text style={styles.emptyTitle}>Nenhuma solicitacao</Text>
               <Text style={styles.emptySubtitle}>
-                Crie sua primeira solicitacao e encontre profissionais qualificados
+                Selecione uma categoria acima para criar sua primeira solicitacao
               </Text>
-              <TouchableOpacity style={styles.emptyButton} onPress={() => router.push('/criar-solicitacao')}>
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.emptyButtonText}>Criar Solicitacao</Text>
-              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -297,38 +248,24 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  headerLeft: {
-    flex: 1,
-  },
-  modeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  modeBadgeText: {
-    fontSize: 12,
-    color: '#3b82f6',
-    fontWeight: '600',
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  notificationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f3f4f6',
+  headerButton: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
   },
   content: {
     flex: 1,
@@ -336,51 +273,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 32,
-  },
-  banner: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  bannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bannerIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  bannerText: {
-    flex: 1,
-  },
-  bannerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  bannerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  locationCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 24,
-    gap: 8,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
   },
   section: {
     marginBottom: 24,
@@ -395,12 +287,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
-  },
-  sectionTitleNoMargin: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
   },
   seeAllText: {
     fontSize: 14,
@@ -434,37 +320,20 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'center',
   },
-  actionsGrid: {
+  novaSolicitacaoButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  actionCard: {
-    width: '47%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
     alignItems: 'center',
-  },
-  actionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: '#3b82f6',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 10,
+    marginBottom: 24,
   },
-  actionText: {
-    fontSize: 13,
+  novaSolicitacaoText: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-  },
-  actionCount: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 4,
+    color: '#fff',
   },
   solicitacoesList: {
     gap: 12,
@@ -491,20 +360,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 2,
+    marginBottom: 6,
   },
-  solicitacaoCategoria: {
-    fontSize: 13,
-    color: '#6b7280',
-  },
-  solicitacaoRight: {
-    alignItems: 'flex-end',
+  solicitacaoMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   statusBadge: {
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 8,
-    borderRadius: 12,
-    marginBottom: 4,
+    borderRadius: 10,
   },
   statusText: {
     fontSize: 11,
@@ -521,7 +387,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: '#374151',
     marginTop: 16,
@@ -531,21 +397,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     textAlign: 'center',
-    marginBottom: 20,
     lineHeight: 20,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    backgroundColor: '#3b82f6',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

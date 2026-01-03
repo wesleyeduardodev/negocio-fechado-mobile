@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -50,7 +49,11 @@ const ICON_COLORS: Record<string, { bg: string; icon: string }> = {
   'cut': { bg: '#fee2e2', icon: '#ef4444' },
 };
 
-export default function HomeProfissional() {
+interface HomeProfissionalProps {
+  onOpenDrawer?: () => void;
+}
+
+export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps) {
   const { usuario } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -149,14 +152,13 @@ export default function HomeProfissional() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.modeBadge}>
-            <Ionicons name="briefcase" size={14} color="#10b981" />
-            <Text style={styles.modeBadgeText}>Modo Profissional</Text>
-          </View>
-          <Text style={styles.userName}>{usuario?.nome?.split(' ')[0] || 'Profissional'}</Text>
-        </View>
-        <TouchableOpacity style={styles.notificationButton}>
+        <TouchableOpacity style={styles.headerButton} onPress={onOpenDrawer}>
+          <Ionicons name="menu" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>
+          {usuario?.nome?.split(' ')[0] || 'Usuario'} - Profissional
+        </Text>
+        <TouchableOpacity style={styles.headerButton}>
           <Ionicons name="notifications-outline" size={24} color="#374151" />
         </TouchableOpacity>
       </View>
@@ -169,50 +171,35 @@ export default function HomeProfissional() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10b981']} />
         }
       >
-        <LinearGradient
-          colors={['#10b981', '#059669']}
-          style={styles.banner}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.bannerContent}>
-            <View style={styles.bannerIcon}>
-              <Ionicons name="briefcase" size={28} color="#fff" />
-            </View>
-            <View style={styles.bannerText}>
-              <Text style={styles.bannerTitle}>Area de Trabalho</Text>
-              <Text style={styles.bannerSubtitle}>
-                {totalDisponiveis > 0
-                  ? `Voce tem ${totalDisponiveis} solicitacao(es) disponivel(is)`
-                  : 'Nenhuma solicitacao disponivel no momento'}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-
         <View style={styles.statsContainer}>
           <TouchableOpacity style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: '#d1fae5' }]}>
-              <Ionicons name="document-text-outline" size={22} color="#10b981" />
+              <Ionicons name="document-text-outline" size={20} color="#10b981" />
             </View>
-            <Text style={styles.statNumber}>{totalDisponiveis}</Text>
-            <Text style={styles.statLabel}>Disponiveis</Text>
+            <View style={styles.statContent}>
+              <Text style={styles.statNumber}>{totalDisponiveis}</Text>
+              <Text style={styles.statLabel}>Disponiveis</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: '#fef3c7' }]}>
-              <Ionicons name="chatbubbles-outline" size={22} color="#f59e0b" />
+              <Ionicons name="chatbubbles-outline" size={20} color="#f59e0b" />
             </View>
-            <Text style={styles.statNumber}>{statsProfissional?.emNegociacao || 0}</Text>
-            <Text style={styles.statLabel}>Em Negociacao</Text>
+            <View style={styles.statContent}>
+              <Text style={styles.statNumber}>{statsProfissional?.emNegociacao || 0}</Text>
+              <Text style={styles.statLabel}>Em Negociacao</Text>
+            </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: '#dbeafe' }]}>
-              <Ionicons name="checkmark-done-outline" size={22} color="#3b82f6" />
+              <Ionicons name="checkmark-done-outline" size={20} color="#3b82f6" />
             </View>
-            <Text style={styles.statNumber}>{statsProfissional?.finalizados || 0}</Text>
-            <Text style={styles.statLabel}>Finalizados</Text>
+            <View style={styles.statContent}>
+              <Text style={styles.statNumber}>{statsProfissional?.finalizados || 0}</Text>
+              <Text style={styles.statLabel}>Finalizados</Text>
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -230,6 +217,15 @@ export default function HomeProfissional() {
             </TouchableOpacity>
           </View>
         )}
+
+        <TouchableOpacity
+          style={styles.perfilButton}
+          onPress={() => router.push('/meu-perfil-profissional')}
+        >
+          <Ionicons name="settings-outline" size={20} color="#10b981" />
+          <Text style={styles.perfilButtonText}>Gerenciar Perfil Profissional</Text>
+          <Ionicons name="chevron-forward" size={20} color="#10b981" />
+        </TouchableOpacity>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -251,7 +247,7 @@ export default function HomeProfissional() {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="search-outline" size={64} color="#d1d5db" />
+              <Ionicons name="search-outline" size={56} color="#d1d5db" />
               <Text style={styles.emptyTitle}>Nenhuma solicitacao disponivel</Text>
               <Text style={styles.emptySubtitle}>
                 Novas solicitacoes na sua regiao e categorias aparecerao aqui
@@ -259,15 +255,6 @@ export default function HomeProfissional() {
             </View>
           )}
         </View>
-
-        <TouchableOpacity
-          style={styles.perfilButton}
-          onPress={() => router.push('/meu-perfil-profissional')}
-        >
-          <Ionicons name="settings-outline" size={20} color="#10b981" />
-          <Text style={styles.perfilButtonText}>Gerenciar Perfil Profissional</Text>
-          <Ionicons name="chevron-forward" size={20} color="#10b981" />
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -280,38 +267,24 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  headerLeft: {
-    flex: 1,
-  },
-  modeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  modeBadgeText: {
-    fontSize: 12,
-    color: '#10b981',
-    fontWeight: '600',
-  },
-  userName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  notificationButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#f3f4f6',
+  headerButton: {
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
   },
   content: {
     flex: 1,
@@ -320,67 +293,38 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 32,
   },
-  banner: {
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-  },
-  bannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bannerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  bannerText: {
-    flex: 1,
-  },
-  bannerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  bannerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
   statsContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
+    gap: 10,
+    marginBottom: 16,
   },
   statCard: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
+    padding: 12,
+    gap: 10,
   },
   statIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  statContent: {
+    flex: 1,
   },
   statNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#111827',
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#6b7280',
-    marginTop: 2,
-    textAlign: 'center',
   },
   warningCard: {
     flexDirection: 'row',
@@ -388,7 +332,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef3c7',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 12,
   },
   warningContent: {
@@ -408,6 +352,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#d97706',
+  },
+  perfilButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#d1fae5',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 20,
+  },
+  perfilButtonText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#10b981',
   },
   section: {
     marginBottom: 20,
@@ -514,20 +474,5 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  perfilButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#d1fae5',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
-  },
-  perfilButtonText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#10b981',
   },
 });
