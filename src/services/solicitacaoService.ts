@@ -30,6 +30,10 @@ export const solicitacaoService = {
     await api.delete(`/solicitacoes/${id}`);
   },
 
+  concluir: async (id: number): Promise<void> => {
+    await api.patch(`/solicitacoes/${id}/concluir`);
+  },
+
   getStats: async (): Promise<SolicitacoesStats> => {
     const response = await api.get<SolicitacoesStats>('/solicitacoes/stats');
     return response.data;

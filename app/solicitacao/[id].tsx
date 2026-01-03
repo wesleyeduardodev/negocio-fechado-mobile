@@ -128,6 +128,20 @@ export default function SolicitacaoDetalheScreen() {
     },
   });
 
+  const concluirMutation = useMutation({
+    mutationFn: () => solicitacaoService.concluir(Number(id)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['solicitacao', id] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes-stats'] });
+      Alert.alert('Sucesso', 'Servico concluido! Agora voce pode avaliar o profissional.');
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Erro ao concluir';
+      Alert.alert('Erro', message);
+    },
+  });
+
   const handleCancelar = () => {
     Alert.alert(
       'Cancelar Solicitacao',
@@ -135,6 +149,17 @@ export default function SolicitacaoDetalheScreen() {
       [
         { text: 'Nao', style: 'cancel' },
         { text: 'Sim, cancelar', style: 'destructive', onPress: () => cancelarMutation.mutate() },
+      ]
+    );
+  };
+
+  const handleConcluir = () => {
+    Alert.alert(
+      'Concluir Servico',
+      'O servico foi realizado? Ao concluir, voce podera avaliar o profissional.',
+      [
+        { text: 'Nao', style: 'cancel' },
+        { text: 'Sim, concluir', onPress: () => concluirMutation.mutate() },
       ]
     );
   };
@@ -399,22 +424,40 @@ export default function SolicitacaoDetalheScreen() {
             </Text>
           </View>
         ) : (
-          solicitacao.status === 'ABERTA' && (
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancelar}
-              disabled={cancelarMutation.isPending}
-            >
-              {cancelarMutation.isPending ? (
-                <ActivityIndicator color="#ef4444" />
-              ) : (
-                <>
-                  <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
-                  <Text style={styles.cancelButtonText}>Cancelar Solicitacao</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )
+          <>
+            {solicitacao.status === 'EM_ANDAMENTO' && (
+              <TouchableOpacity
+                style={styles.concluirButton}
+                onPress={handleConcluir}
+                disabled={concluirMutation.isPending}
+              >
+                {concluirMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text style={styles.concluirButtonText}>Concluir Servico</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+            {solicitacao.status === 'ABERTA' && (
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleCancelar}
+                disabled={cancelarMutation.isPending}
+              >
+                {cancelarMutation.isPending ? (
+                  <ActivityIndicator color="#ef4444" />
+                ) : (
+                  <>
+                    <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
+                    <Text style={styles.cancelButtonText}>Cancelar Solicitacao</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -569,6 +612,21 @@ const styles = StyleSheet.create({
   orcamentosCount: {
     fontSize: 15,
     color: '#374151',
+  },
+  concluirButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  concluirButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   cancelButton: {
     flexDirection: 'row',
