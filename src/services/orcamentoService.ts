@@ -3,6 +3,7 @@ import {
   OrcamentoResumo,
   OrcamentoEnviado,
   EnviarOrcamentoRequest,
+  ProfissionalStats,
 } from '../types/orcamento';
 import { PageResponse } from '../types/solicitacao';
 
@@ -30,5 +31,10 @@ export const orcamentoService = {
 
   recusar: async (orcamentoId: number): Promise<void> => {
     await api.patch(`/orcamentos/${orcamentoId}/recusar`);
+  },
+
+  getStatsProfissional: async (): Promise<ProfissionalStats> => {
+    const response = await api.get<ProfissionalStats>('/orcamentos/stats');
+    return response.data;
   },
 };

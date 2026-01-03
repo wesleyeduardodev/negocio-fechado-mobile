@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore, ModoApp } from '@/src/stores/authStore';
 import { profissionalService } from '@/src/services/profissionalService';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
+import { orcamentoService } from '@/src/services/orcamentoService';
 
 export default function PerfilScreen() {
   const { usuario, logout, modoAtual, setModo } = useAuthStore();
@@ -29,9 +30,25 @@ export default function PerfilScreen() {
     refetchOnMount: 'always',
   });
 
+  const { data: perfilProfissional, refetch: refetchPerfilProfissional } = useQuery({
+    queryKey: ['meu-perfil-profissional'],
+    queryFn: profissionalService.buscarMeuPerfil,
+    enabled: !!isProfissional,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
   const { data: stats, refetch: refetchStats } = useQuery({
     queryKey: ['solicitacoes-stats'],
     queryFn: solicitacaoService.getStats,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const { data: statsProfissional, refetch: refetchStatsProfissional } = useQuery({
+    queryKey: ['profissional-stats'],
+    queryFn: orcamentoService.getStatsProfissional,
+    enabled: !!isProfissional,
     staleTime: 0,
     refetchOnMount: 'always',
   });
@@ -40,7 +57,11 @@ export default function PerfilScreen() {
     useCallback(() => {
       refetchProfissionalStatus();
       refetchStats();
-    }, [refetchProfissionalStatus, refetchStats])
+      if (isProfissional) {
+        refetchPerfilProfissional();
+        refetchStatsProfissional();
+      }
+    }, [refetchProfissionalStatus, refetchStats, refetchPerfilProfissional, refetchStatsProfissional, isProfissional])
   );
 
   const handleLogout = () => {
@@ -242,17 +263,19 @@ export default function PerfilScreen() {
         {modoAtual === 'profissional' && (
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{statsProfissional?.orcamentosEnviados || 0}</Text>
               <Text style={styles.statLabel}>Orcamentos</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statNumber}>{statsProfissional?.finalizados || 0}</Text>
               <Text style={styles.statLabel}>Finalizados</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>0.0</Text>
+              <Text style={styles.statNumber}>
+                {perfilProfissional?.mediaAvaliacoes?.toFixed(1) || '0.0'}
+              </Text>
               <Text style={styles.statLabel}>Avaliacao</Text>
             </View>
           </View>

@@ -31,3 +31,9 @@ export interface EnviarOrcamentoRequest {
   prazoEstimado: string;
   mensagem: string;
 }
+
+export interface ProfissionalStats {
+  orcamentosEnviados: number;
+  emNegociacao: number;
+  finalizados: number;
+}

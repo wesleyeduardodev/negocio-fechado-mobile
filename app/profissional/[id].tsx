@@ -15,6 +15,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { profissionalService } from '@/src/services/profissionalService';
+import { avaliacaoService } from '@/src/services/avaliacaoService';
+import { AvaliacaoResponse } from '@/src/types/avaliacao';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -58,12 +60,23 @@ export default function PerfilProfissionalScreen() {
     refetchOnMount: 'always',
   });
 
+  const { data: avaliacoesData, refetch: refetchAvaliacoes } = useQuery({
+    queryKey: ['avaliacoes-profissional', perfilId],
+    queryFn: () => avaliacaoService.listarPorProfissional(perfilId, 0, 5),
+    enabled: !!perfilId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  const avaliacoes = avaliacoesData?.content ?? [];
+
   useFocusEffect(
     useCallback(() => {
       if (perfilId) {
         refetch();
+        refetchAvaliacoes();
       }
-    }, [refetch, perfilId])
+    }, [refetch, refetchAvaliacoes, perfilId])
   );
 
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
@@ -77,6 +90,35 @@ export default function PerfilProfissionalScreen() {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
+  const formatRelativeDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays < 7) return `${diffDays} dias atras`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} semana(s) atras`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} mes(es) atras`;
+    return `${Math.floor(diffDays / 365)} ano(s) atras`;
+  };
+
+  const renderStars = (nota: number) => {
+    return (
+      <View style={styles.starsRow}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Ionicons
+            key={star}
+            name={star <= nota ? 'star' : 'star-outline'}
+            size={14}
+            color={star <= nota ? '#f59e0b' : '#d1d5db'}
+          />
+        ))}
+      </View>
+    );
   };
 
   if (isLoading) {
@@ -197,7 +239,7 @@ export default function PerfilProfissionalScreen() {
             )}
           </View>
 
-          {perfil.totalAvaliacoes === 0 ? (
+          {avaliacoes.length === 0 ? (
             <View style={styles.emptyAvaliacoes}>
               <Ionicons name="chatbubble-outline" size={48} color="#d1d5db" />
               <Text style={styles.emptyAvaliacoesText}>
@@ -206,9 +248,21 @@ export default function PerfilProfissionalScreen() {
             </View>
           ) : (
             <View style={styles.avaliacoesList}>
-              <Text style={styles.avaliacoesPlaceholder}>
-                Avaliacoes serao exibidas aqui
-              </Text>
+              {avaliacoes.map((avaliacao: AvaliacaoResponse) => (
+                <View key={avaliacao.id} style={styles.avaliacaoItem}>
+                  <View style={styles.avaliacaoHeader}>
+                    <View style={styles.avaliacaoClienteInfo}>
+                      <View style={styles.avaliacaoAvatar}>
+                        <Ionicons name="person" size={16} color="#9ca3af" />
+                      </View>
+                      <Text style={styles.avaliacaoClienteNome}>{avaliacao.clienteNome}</Text>
+                    </View>
+                    <Text style={styles.avaliacaoData}>{formatRelativeDate(avaliacao.criadoEm)}</Text>
+                  </View>
+                  {renderStars(avaliacao.nota)}
+                  <Text style={styles.avaliacaoComentario}>{avaliacao.comentario}</Text>
+                </View>
+              ))}
             </View>
           )}
         </View>
@@ -405,13 +459,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   avaliacoesList: {
+    gap: 12,
+  },
+  avaliacaoItem: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
   },
-  avaliacoesPlaceholder: {
+  avaliacaoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  avaliacaoClienteInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  avaliacaoAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avaliacaoClienteNome: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  avaliacaoData: {
+    fontSize: 12,
     color: '#9ca3af',
-    textAlign: 'center',
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 2,
+    marginBottom: 8,
+  },
+  avaliacaoComentario: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
   },
 });

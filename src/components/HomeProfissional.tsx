@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '@/src/stores/authStore';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { profissionalService } from '@/src/services/profissionalService';
+import { orcamentoService } from '@/src/services/orcamentoService';
 import { SolicitacaoParaProfissional } from '@/src/types/solicitacao';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -67,16 +68,24 @@ export default function HomeProfissional() {
     refetchOnMount: 'always',
   });
 
+  const { data: statsProfissional, refetch: refetchStats } = useQuery({
+    queryKey: ['profissional-stats'],
+    queryFn: orcamentoService.getStatsProfissional,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
   useFocusEffect(
     useCallback(() => {
       refetchDisponiveis();
       refetchPerfil();
-    }, [refetchDisponiveis, refetchPerfil])
+      refetchStats();
+    }, [refetchDisponiveis, refetchPerfil, refetchStats])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchDisponiveis(), refetchPerfil()]);
+    await Promise.all([refetchDisponiveis(), refetchPerfil(), refetchStats()]);
     setRefreshing(false);
   };
 
@@ -194,7 +203,7 @@ export default function HomeProfissional() {
             <View style={[styles.statIcon, { backgroundColor: '#fef3c7' }]}>
               <Ionicons name="chatbubbles-outline" size={22} color="#f59e0b" />
             </View>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{statsProfissional?.emNegociacao || 0}</Text>
             <Text style={styles.statLabel}>Em Negociacao</Text>
           </TouchableOpacity>
 
@@ -202,7 +211,7 @@ export default function HomeProfissional() {
             <View style={[styles.statIcon, { backgroundColor: '#dbeafe' }]}>
               <Ionicons name="checkmark-done-outline" size={22} color="#3b82f6" />
             </View>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{statsProfissional?.finalizados || 0}</Text>
             <Text style={styles.statLabel}>Finalizados</Text>
           </TouchableOpacity>
         </View>
