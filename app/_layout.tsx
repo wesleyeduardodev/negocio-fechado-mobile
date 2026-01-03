@@ -78,6 +78,9 @@ function RootLayoutNav() {
         <Stack.Screen name="editar-perfil" />
         <Stack.Screen name="criar-solicitacao" />
         <Stack.Screen name="solicitacao/[id]" />
+        <Stack.Screen name="tornar-se-profissional" />
+        <Stack.Screen name="meu-perfil-profissional" />
+        <Stack.Screen name="profissional/[id]" />
         <Stack.Screen name="modal" options={{ presentation: 'modal', headerShown: true }} />
       </Stack>
     </ThemeProvider>

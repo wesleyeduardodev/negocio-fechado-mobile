@@ -5,16 +5,30 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 
 import { useAuthStore } from '@/src/stores/authStore';
+import { profissionalService } from '@/src/services/profissionalService';
+import { solicitacaoService } from '@/src/services/solicitacaoService';
 
 export default function PerfilScreen() {
   const { usuario, logout } = useAuthStore();
+
+  const { data: isProfissional, isLoading: isLoadingProfissional } = useQuery({
+    queryKey: ['profissional-status'],
+    queryFn: profissionalService.isProfissional,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['solicitacoes-stats'],
+    queryFn: solicitacaoService.getStats,
+  });
 
   const handleLogout = () => {
     Alert.alert(
@@ -93,16 +107,23 @@ export default function PerfilScreen() {
               {usuario?.bairro}, {usuario?.cidadeNome} - {usuario?.uf}
             </Text>
           </View>
+
+          {isProfissional && (
+            <View style={styles.profissionalBadge}>
+              <Ionicons name="briefcase" size={14} color="#fff" />
+              <Text style={styles.profissionalBadgeText}>Profissional</Text>
+            </View>
+          )}
         </LinearGradient>
 
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{stats?.total || 0}</Text>
             <Text style={styles.statLabel}>Solicitacoes</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{stats?.concluidas || 0}</Text>
             <Text style={styles.statLabel}>Concluidas</Text>
           </View>
           <View style={styles.statDivider} />
@@ -110,6 +131,45 @@ export default function PerfilScreen() {
             <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Avaliacoes</Text>
           </View>
+        </View>
+
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Profissional</Text>
+
+          {isLoadingProfissional ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#3b82f6" />
+            </View>
+          ) : isProfissional ? (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push('/meu-perfil-profissional')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={[styles.menuIconContainer, { backgroundColor: '#d1fae5' }]}>
+                  <Ionicons name="briefcase" size={22} color="#10b981" />
+                </View>
+                <Text style={styles.menuItemLabel}>Meu Perfil Profissional</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push('/tornar-se-profissional')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={[styles.menuIconContainer, { backgroundColor: '#fef3c7' }]}>
+                  <Ionicons name="add-circle" size={22} color="#f59e0b" />
+                </View>
+                <View>
+                  <Text style={styles.menuItemLabel}>Quero ser Profissional</Text>
+                  <Text style={styles.menuItemSubtitle}>Receba solicitacoes de servicos</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.menuSection}>
@@ -204,6 +264,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
   },
+  profissionalBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    marginTop: 12,
+    gap: 6,
+  },
+  profissionalBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
   statsContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -244,6 +319,10 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,6 +334,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flex: 1,
   },
   menuIconContainer: {
     width: 40,
@@ -268,6 +348,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#374151',
     fontWeight: '500',
+  },
+  menuItemSubtitle: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 2,
   },
   logoutButton: {
     flexDirection: 'row',
