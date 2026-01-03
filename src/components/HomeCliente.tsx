@@ -153,8 +153,11 @@ export default function HomeCliente() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Ola,</Text>
+        <View style={styles.headerLeft}>
+          <View style={styles.modeBadge}>
+            <Ionicons name="person" size={14} color="#3b82f6" />
+            <Text style={styles.modeBadgeText}>Modo Cliente</Text>
+          </View>
           <Text style={styles.userName}>{usuario?.nome?.split(' ')[0] || 'Usuario'}</Text>
         </View>
         <TouchableOpacity style={styles.notificationButton}>
@@ -298,9 +301,19 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: '#fff',
   },
-  greeting: {
-    fontSize: 14,
-    color: '#6b7280',
+  headerLeft: {
+    flex: 1,
+  },
+  modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  modeBadgeText: {
+    fontSize: 12,
+    color: '#3b82f6',
+    fontWeight: '600',
   },
   userName: {
     fontSize: 22,
