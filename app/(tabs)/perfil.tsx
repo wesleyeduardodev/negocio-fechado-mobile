@@ -13,12 +13,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 
-import { useAuthStore } from '@/src/stores/authStore';
+import { useAuthStore, ModoApp } from '@/src/stores/authStore';
 import { profissionalService } from '@/src/services/profissionalService';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 
 export default function PerfilScreen() {
-  const { usuario, logout } = useAuthStore();
+  const { usuario, logout, modoAtual, setModo } = useAuthStore();
 
   const { data: isProfissional, isLoading: isLoadingProfissional } = useQuery({
     queryKey: ['profissional-status'],
@@ -41,12 +41,58 @@ export default function PerfilScreen() {
     );
   };
 
-  const menuItems = [
+  const handleModoChange = (modo: ModoApp) => {
+    if (modo === 'profissional' && !isProfissional) {
+      Alert.alert(
+        'Criar Perfil Profissional',
+        'Voce ainda nao tem um perfil profissional. Deseja criar agora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Criar Perfil', onPress: () => router.push('/tornar-se-profissional') },
+        ]
+      );
+      return;
+    }
+    setModo(modo);
+  };
+
+  const menuItemsCliente = [
     {
       icon: 'person-outline',
       label: 'Editar Perfil',
       onPress: () => router.push('/editar-perfil'),
     },
+    {
+      icon: 'document-text-outline',
+      label: 'Minhas Solicitacoes',
+      onPress: () => {},
+    },
+    {
+      icon: 'time-outline',
+      label: 'Historico',
+      onPress: () => {},
+    },
+  ];
+
+  const menuItemsProfissional = [
+    {
+      icon: 'briefcase-outline',
+      label: 'Meu Perfil Profissional',
+      onPress: () => router.push('/meu-perfil-profissional'),
+    },
+    {
+      icon: 'chatbubbles-outline',
+      label: 'Meus Orcamentos',
+      onPress: () => {},
+    },
+    {
+      icon: 'bar-chart-outline',
+      label: 'Estatisticas',
+      onPress: () => {},
+    },
+  ];
+
+  const menuItemsGeral = [
     {
       icon: 'notifications-outline',
       label: 'Notificacoes',
@@ -64,6 +110,8 @@ export default function PerfilScreen() {
     },
   ];
 
+  const currentMenuItems = modoAtual === 'profissional' ? menuItemsProfissional : menuItemsCliente;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -76,25 +124,17 @@ export default function PerfilScreen() {
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['#3b82f6', '#1d4ed8']}
+          colors={modoAtual === 'profissional' ? ['#10b981', '#059669'] : ['#3b82f6', '#1d4ed8']}
           style={styles.profileCard}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.avatarContainer}>
-            {usuario?.fotoUrl ? (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {usuario?.nome?.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
-                </Text>
-              </View>
-            )}
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>
+                {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            </View>
           </View>
           <Text style={styles.profileName}>{usuario?.nome || 'Usuario'}</Text>
           <View style={styles.profileInfo}>
@@ -107,74 +147,135 @@ export default function PerfilScreen() {
               {usuario?.bairro}, {usuario?.cidadeNome} - {usuario?.uf}
             </Text>
           </View>
-
-          {isProfissional && (
-            <View style={styles.profissionalBadge}>
-              <Ionicons name="briefcase" size={14} color="#fff" />
-              <Text style={styles.profissionalBadgeText}>Profissional</Text>
-            </View>
-          )}
         </LinearGradient>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats?.total || 0}</Text>
-            <Text style={styles.statLabel}>Solicitacoes</Text>
+        {isLoadingProfissional ? (
+          <View style={styles.loadingModeContainer}>
+            <ActivityIndicator size="small" color="#3b82f6" />
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats?.concluidas || 0}</Text>
-            <Text style={styles.statLabel}>Concluidas</Text>
+        ) : (
+          <View style={styles.modeToggleContainer}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                modoAtual === 'cliente' && styles.modeButtonActive,
+              ]}
+              onPress={() => handleModoChange('cliente')}
+            >
+              <Ionicons
+                name="person"
+                size={18}
+                color={modoAtual === 'cliente' ? '#3b82f6' : '#6b7280'}
+              />
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  modoAtual === 'cliente' && styles.modeButtonTextActive,
+                ]}
+              >
+                Cliente
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                modoAtual === 'profissional' && styles.modeButtonActivePro,
+                !isProfissional && styles.modeButtonDisabled,
+              ]}
+              onPress={() => handleModoChange('profissional')}
+            >
+              <Ionicons
+                name="briefcase"
+                size={18}
+                color={modoAtual === 'profissional' ? '#10b981' : '#6b7280'}
+              />
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  modoAtual === 'profissional' && styles.modeButtonTextActivePro,
+                ]}
+              >
+                Profissional
+              </Text>
+              {!isProfissional && (
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>NOVO</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Avaliacoes</Text>
+        )}
+
+        {modoAtual === 'cliente' && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats?.total || 0}</Text>
+              <Text style={styles.statLabel}>Solicitacoes</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats?.concluidas || 0}</Text>
+              <Text style={styles.statLabel}>Concluidas</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Avaliacoes</Text>
+            </View>
           </View>
-        </View>
+        )}
+
+        {modoAtual === 'profissional' && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Orcamentos</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0</Text>
+              <Text style={styles.statLabel}>Finalizados</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>0.0</Text>
+              <Text style={styles.statLabel}>Avaliacao</Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.menuSection}>
-          <Text style={styles.menuSectionTitle}>Profissional</Text>
-
-          {isLoadingProfissional ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#3b82f6" />
-            </View>
-          ) : isProfissional ? (
+          <Text style={styles.menuSectionTitle}>
+            {modoAtual === 'profissional' ? 'Area Profissional' : 'Minha Conta'}
+          </Text>
+          {currentMenuItems.map((item, index) => (
             <TouchableOpacity
+              key={index}
               style={styles.menuItem}
-              onPress={() => router.push('/meu-perfil-profissional')}
+              onPress={item.onPress}
             >
               <View style={styles.menuItemLeft}>
-                <View style={[styles.menuIconContainer, { backgroundColor: '#d1fae5' }]}>
-                  <Ionicons name="briefcase" size={22} color="#10b981" />
+                <View style={[
+                  styles.menuIconContainer,
+                  modoAtual === 'profissional' && { backgroundColor: '#d1fae5' }
+                ]}>
+                  <Ionicons
+                    name={item.icon as any}
+                    size={22}
+                    color={modoAtual === 'profissional' ? '#10b981' : '#3b82f6'}
+                  />
                 </View>
-                <Text style={styles.menuItemLabel}>Meu Perfil Profissional</Text>
+                <Text style={styles.menuItemLabel}>{item.label}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push('/tornar-se-profissional')}
-            >
-              <View style={styles.menuItemLeft}>
-                <View style={[styles.menuIconContainer, { backgroundColor: '#fef3c7' }]}>
-                  <Ionicons name="add-circle" size={22} color="#f59e0b" />
-                </View>
-                <View>
-                  <Text style={styles.menuItemLabel}>Quero ser Profissional</Text>
-                  <Text style={styles.menuItemSubtitle}>Receba solicitacoes de servicos</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-          )}
+          ))}
         </View>
 
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>Configuracoes</Text>
-          {menuItems.map((item, index) => (
+          {menuItemsGeral.map((item, index) => (
             <TouchableOpacity
               key={index}
               style={styles.menuItem}
@@ -264,19 +365,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
   },
-  profissionalBadge: {
+  loadingModeContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  modeToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+    gap: 4,
+  },
+  modeButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginTop: 12,
-    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 8,
   },
-  profissionalBadgeText: {
-    fontSize: 13,
+  modeButtonActive: {
+    backgroundColor: '#eff6ff',
+  },
+  modeButtonActivePro: {
+    backgroundColor: '#d1fae5',
+  },
+  modeButtonDisabled: {
+    opacity: 0.8,
+  },
+  modeButtonText: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#6b7280',
+  },
+  modeButtonTextActive: {
+    color: '#3b82f6',
+  },
+  modeButtonTextActivePro: {
+    color: '#10b981',
+  },
+  newBadge: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
     color: '#fff',
   },
   statsContainer: {
@@ -284,7 +425,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   statItem: {
     flex: 1,
@@ -319,10 +460,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -348,11 +485,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#374151',
     fontWeight: '500',
-  },
-  menuItemSubtitle: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 2,
   },
   logoutButton: {
     flexDirection: 'row',

@@ -52,3 +52,17 @@ export interface PageResponse<T> {
   first: boolean;
   last: boolean;
 }
+
+export interface SolicitacaoParaProfissional {
+  id: number;
+  titulo: string;
+  descricao: string;
+  clienteNome: string;
+  categoriaNome: string;
+  categoriaIcone: string;
+  bairro: string;
+  cidadeNome: string;
+  uf: string;
+  quantidadeFotos: number;
+  criadoEm: string;
+}

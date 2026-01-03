@@ -5,6 +5,7 @@ import {
   CriarSolicitacaoRequest,
   SolicitacoesStats,
   PageResponse,
+  SolicitacaoParaProfissional,
 } from '../types/solicitacao';
 
 export const solicitacaoService = {
@@ -31,6 +32,18 @@ export const solicitacaoService = {
 
   getStats: async (): Promise<SolicitacoesStats> => {
     const response = await api.get<SolicitacoesStats>('/solicitacoes/stats');
+    return response.data;
+  },
+
+  listarDisponiveis: async (page: number = 0, size: number = 10): Promise<PageResponse<SolicitacaoParaProfissional>> => {
+    const response = await api.get<PageResponse<SolicitacaoParaProfissional>>('/solicitacoes/disponiveis', {
+      params: { page, size },
+    });
+    return response.data;
+  },
+
+  buscarDisponivelPorId: async (id: number): Promise<SolicitacaoDetalhe> => {
+    const response = await api.get<SolicitacaoDetalhe>(`/solicitacoes/disponiveis/${id}`);
     return response.data;
   },
 };

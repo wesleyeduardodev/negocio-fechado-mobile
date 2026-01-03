@@ -15,6 +15,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { StatusSolicitacao } from '@/src/types/solicitacao';
 
+type SearchParams = {
+  id: string;
+  modo?: 'profissional';
+};
+
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
   'water': 'water',
@@ -38,12 +43,15 @@ const STATUS_CONFIG: Record<StatusSolicitacao, { label: string; color: string; b
 };
 
 export default function SolicitacaoDetalheScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, modo } = useLocalSearchParams<SearchParams>();
   const queryClient = useQueryClient();
+  const isProfissionalMode = modo === 'profissional';
 
   const { data: solicitacao, isLoading, error } = useQuery({
-    queryKey: ['solicitacao', id],
-    queryFn: () => solicitacaoService.buscarPorId(Number(id)),
+    queryKey: ['solicitacao', id, isProfissionalMode],
+    queryFn: () => isProfissionalMode
+      ? solicitacaoService.buscarDisponivelPorId(Number(id))
+      : solicitacaoService.buscarPorId(Number(id)),
     enabled: !!id,
   });
 
@@ -126,7 +134,9 @@ export default function SolicitacaoDetalheScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Detalhes</Text>
+        <Text style={styles.headerTitle}>
+          {isProfissionalMode ? 'Solicitacao Disponivel' : 'Detalhes'}
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -169,38 +179,61 @@ export default function SolicitacaoDetalheScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Orcamentos</Text>
-          {solicitacao.totalOrcamentos === 0 ? (
-            <View style={styles.emptyOrcamentos}>
-              <Ionicons name="document-text-outline" size={40} color="#d1d5db" />
-              <Text style={styles.emptyText}>Nenhum orcamento recebido</Text>
-              <Text style={styles.emptySubtext}>
-                Profissionais da regiao poderao enviar orcamentos
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.orcamentosCount}>
-              {solicitacao.totalOrcamentos} orcamento(s) recebido(s)
-            </Text>
-          )}
-        </View>
-
-        {solicitacao.status === 'ABERTA' && (
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={handleCancelar}
-            disabled={cancelarMutation.isPending}
-          >
-            {cancelarMutation.isPending ? (
-              <ActivityIndicator color="#ef4444" />
+        {!isProfissionalMode && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Orcamentos</Text>
+            {solicitacao.totalOrcamentos === 0 ? (
+              <View style={styles.emptyOrcamentos}>
+                <Ionicons name="document-text-outline" size={40} color="#d1d5db" />
+                <Text style={styles.emptyText}>Nenhum orcamento recebido</Text>
+                <Text style={styles.emptySubtext}>
+                  Profissionais da regiao poderao enviar orcamentos
+                </Text>
+              </View>
             ) : (
-              <>
-                <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
-                <Text style={styles.cancelButtonText}>Cancelar Solicitacao</Text>
-              </>
+              <Text style={styles.orcamentosCount}>
+                {solicitacao.totalOrcamentos} orcamento(s) recebido(s)
+              </Text>
             )}
-          </TouchableOpacity>
+          </View>
+        )}
+
+        {isProfissionalMode && solicitacao.fotos && solicitacao.fotos.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Fotos ({solicitacao.fotos.length})</Text>
+            <Text style={styles.fotosInfo}>
+              O cliente anexou {solicitacao.fotos.length} foto(s) a esta solicitacao
+            </Text>
+          </View>
+        )}
+
+        {isProfissionalMode ? (
+          <View style={styles.profissionalActions}>
+            <TouchableOpacity style={styles.enviarOrcamentoButton}>
+              <Ionicons name="send" size={20} color="#fff" />
+              <Text style={styles.enviarOrcamentoText}>Enviar Orcamento</Text>
+            </TouchableOpacity>
+            <Text style={styles.orcamentoHint}>
+              Envie uma proposta de valor para este servico
+            </Text>
+          </View>
+        ) : (
+          solicitacao.status === 'ABERTA' && (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={handleCancelar}
+              disabled={cancelarMutation.isPending}
+            >
+              {cancelarMutation.isPending ? (
+                <ActivityIndicator color="#ef4444" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
+                  <Text style={styles.cancelButtonText}>Cancelar Solicitacao</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )
         )}
       </ScrollView>
     </SafeAreaView>
@@ -369,5 +402,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ef4444',
+  },
+  profissionalActions: {
+    alignItems: 'center',
+  },
+  enviarOrcamentoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
+  },
+  enviarOrcamentoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  orcamentoHint: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  fotosInfo: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });
