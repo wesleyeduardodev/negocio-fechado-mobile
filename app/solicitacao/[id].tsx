@@ -213,20 +213,13 @@ export default function SolicitacaoDetalheScreen() {
 
     Alert.alert(
       'Demonstrar Interesse',
-      `Deseja demonstrar interesse nesta solicitacao de ${solicitacaoProfissional.clienteNome}?\n\nApos confirmar, o WhatsApp sera aberto para voce entrar em contato.`,
+      `Deseja demonstrar interesse nesta solicitacao de ${solicitacaoProfissional.clienteNome}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Sim, tenho interesse',
           onPress: () => {
-            interesseMutation.mutate(
-              { solicitacaoId: Number(id) },
-              {
-                onSuccess: () => {
-                  openWhatsAppProfissional();
-                }
-              }
-            );
+            interesseMutation.mutate({ solicitacaoId: Number(id) });
           }
         },
       ]
