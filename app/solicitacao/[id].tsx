@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -12,7 +12,10 @@ import {
   Modal,
   Dimensions,
   RefreshControl,
+  FlatList,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -20,7 +23,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { interesseService } from '@/src/services/interesseService';
@@ -59,8 +62,10 @@ export default function SolicitacaoDetalheScreen() {
   const queryClient = useQueryClient();
   const isProfissionalMode = modo === 'profissional';
   const [interesseEnviado, setInteresseEnviado] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const photoListRef = useRef<FlatList>(null);
 
   // Query para modo cliente
   const {
@@ -124,6 +129,34 @@ export default function SolicitacaoDetalheScreen() {
       setRefreshing(false);
     }
   }, [isProfissionalMode, refetchProfissional, refetchCliente, refetchInteressados]);
+
+  const handleDownloadPhoto = async (photoUrl: string) => {
+    try {
+      setDownloading(true);
+
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permissao necessaria', 'Precisamos de permissao para salvar a foto na galeria');
+        return;
+      }
+
+      const fileName = photoUrl.split('/').pop() || 'foto.jpg';
+      const fileUri = FileSystem.documentDirectory + fileName;
+
+      const downloadResult = await FileSystem.downloadAsync(photoUrl, fileUri);
+
+      if (downloadResult.status === 200) {
+        await MediaLibrary.saveToLibraryAsync(downloadResult.uri);
+        Alert.alert('Sucesso', 'Foto salva na galeria!');
+      } else {
+        throw new Error('Falha no download');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Nao foi possivel salvar a foto');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const interesseMutation = useMutation({
     mutationFn: interesseService.criar,
@@ -433,7 +466,7 @@ export default function SolicitacaoDetalheScreen() {
               {solicitacao.fotos.map((foto, index) => (
                 <TouchableOpacity
                   key={index}
-                  onPress={() => setSelectedPhoto(foto)}
+                  onPress={() => setSelectedPhotoIndex(index)}
                   style={styles.fotoWrapper}
                 >
                   <Image source={{ uri: foto, cache: 'reload' }} style={styles.fotoThumb} />
@@ -617,24 +650,74 @@ export default function SolicitacaoDetalheScreen() {
 
       {/* Modal para visualizar foto em tela cheia */}
       <Modal
-        visible={!!selectedPhoto}
+        visible={selectedPhotoIndex !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedPhoto(null)}
+        onRequestClose={() => setSelectedPhotoIndex(null)}
+        statusBarTranslucent
       >
         <View style={styles.photoModal}>
-          <TouchableOpacity
-            style={styles.photoModalClose}
-            onPress={() => setSelectedPhoto(null)}
-          >
-            <Ionicons name="close" size={30} color="#fff" />
-          </TouchableOpacity>
-          {selectedPhoto && (
-            <Image
-              source={{ uri: selectedPhoto, cache: 'reload' }}
-              style={styles.photoModalImage}
-              resizeMode="contain"
-            />
+          {/* Header com botões */}
+          <View style={styles.photoModalHeader}>
+            <TouchableOpacity
+              style={styles.photoModalButton}
+              onPress={() => setSelectedPhotoIndex(null)}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+
+            {selectedPhotoIndex !== null && solicitacao?.fotos && (
+              <TouchableOpacity
+                style={styles.photoModalButton}
+                onPress={() => handleDownloadPhoto(solicitacao.fotos[selectedPhotoIndex])}
+                disabled={downloading}
+              >
+                {downloading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="download-outline" size={28} color="#fff" />
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {selectedPhotoIndex !== null && solicitacao?.fotos && (
+            <>
+              <FlatList
+                ref={photoListRef}
+                data={solicitacao.fotos}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={selectedPhotoIndex}
+                getItemLayout={(_, index) => ({
+                  length: SCREEN_WIDTH,
+                  offset: SCREEN_WIDTH * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(e) => {
+                  const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                  setSelectedPhotoIndex(newIndex);
+                }}
+                renderItem={({ item: foto }) => (
+                  <View style={styles.photoSlide}>
+                    <Image
+                      source={{ uri: foto, cache: 'reload' }}
+                      style={styles.photoModalImage}
+                      resizeMode="contain"
+                    />
+                  </View>
+                )}
+                keyExtractor={(_, index) => index.toString()}
+              />
+
+              {/* Indicador de posição */}
+              <View style={styles.photoIndicator}>
+                <Text style={styles.photoIndicatorText}>
+                  {selectedPhotoIndex + 1} / {solicitacao.fotos.length}
+                </Text>
+              </View>
+            </>
           )}
         </View>
       </Modal>
@@ -1057,19 +1140,51 @@ const styles = StyleSheet.create({
   },
   photoModal: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.95)',
+    backgroundColor: '#000',
+  },
+  photoModalHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    zIndex: 10,
+  },
+  photoModalButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  photoModalClose: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 10,
-    padding: 10,
+  photoSlide: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   photoModalImage: {
     width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.8,
+  },
+  photoIndicator: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  photoIndicatorText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
