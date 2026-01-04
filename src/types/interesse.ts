@@ -39,4 +39,5 @@ export interface MeuTrabalho {
   avaliacaoNota: number | null;
   avaliacaoComentario: string | null;
   avaliacaoData: string | null;
+  avaliacaoFotos: string[];
 }

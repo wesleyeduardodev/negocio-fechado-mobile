@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { avaliacaoService } from '@/src/services/avaliacaoService';
+import { arquivoService } from '@/src/services/arquivoService';
 
 export default function AvaliarScreen() {
   const { solicitacaoId } = useLocalSearchParams<{ solicitacaoId: string }>();
@@ -24,9 +26,26 @@ export default function AvaliarScreen() {
 
   const [nota, setNota] = useState(0);
   const [comentario, setComentario] = useState('');
+  const [fotos, setFotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const MAX_FOTOS = 5;
 
   const avaliarMutation = useMutation({
-    mutationFn: () => avaliacaoService.criar(Number(solicitacaoId), { nota, comentario }),
+    mutationFn: async () => {
+      const avaliacao = await avaliacaoService.criar(Number(solicitacaoId), { nota, comentario });
+
+      if (fotos.length > 0) {
+        setUploading(true);
+        try {
+          await arquivoService.uploadFotosAvaliacao(avaliacao.id, fotos);
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      return avaliacao;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['solicitacao', solicitacaoId] });
       queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
@@ -39,6 +58,27 @@ export default function AvaliarScreen() {
       Alert.alert('Erro', message);
     },
   });
+
+  const handleSelecionarFotos = async () => {
+    try {
+      const maxRestantes = MAX_FOTOS - fotos.length;
+      if (maxRestantes <= 0) {
+        Alert.alert('Limite atingido', `Maximo de ${MAX_FOTOS} fotos permitidas`);
+        return;
+      }
+
+      const uris = await arquivoService.selecionarFotos(maxRestantes);
+      if (uris.length > 0) {
+        setFotos((prev) => [...prev, ...uris]);
+      }
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Erro ao selecionar fotos');
+    }
+  };
+
+  const handleRemoverFoto = (index: number) => {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = () => {
     if (nota === 0) {
@@ -129,6 +169,45 @@ export default function AvaliarScreen() {
             </Text>
           </View>
 
+          <View style={styles.card}>
+            <Text style={styles.label}>Fotos (opcional)</Text>
+            <Text style={styles.fotosHint}>
+              Adicione fotos do servico realizado (max {MAX_FOTOS})
+            </Text>
+
+            {fotos.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.fotosContainer}
+              >
+                {fotos.map((uri, index) => (
+                  <View key={index} style={styles.fotoWrapper}>
+                    <Image source={{ uri }} style={styles.fotoThumb} />
+                    <TouchableOpacity
+                      style={styles.fotoRemoveButton}
+                      onPress={() => handleRemoverFoto(index)}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            {fotos.length < MAX_FOTOS && (
+              <TouchableOpacity
+                style={styles.addFotoButton}
+                onPress={handleSelecionarFotos}
+              >
+                <Ionicons name="camera-outline" size={24} color="#3b82f6" />
+                <Text style={styles.addFotoText}>
+                  {fotos.length === 0 ? 'Adicionar fotos' : 'Adicionar mais fotos'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <TouchableOpacity
             style={[
               styles.submitButton,
@@ -138,7 +217,12 @@ export default function AvaliarScreen() {
             disabled={avaliarMutation.isPending || nota === 0 || comentario.length < 10}
           >
             {avaliarMutation.isPending ? (
-              <ActivityIndicator color="#fff" />
+              <>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.submitButtonText}>
+                  {uploading ? 'Enviando fotos...' : 'Enviando...'}
+                </Text>
+              </>
             ) : (
               <>
                 <Ionicons name="send" size={20} color="#fff" />
@@ -260,5 +344,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  fotosHint: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  fotosContainer: {
+    gap: 10,
+    paddingVertical: 4,
+    marginBottom: 12,
+  },
+  fotoWrapper: {
+    position: 'relative',
+  },
+  fotoThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  fotoRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  addFotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    gap: 8,
+  },
+  addFotoText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3b82f6',
   },
 });

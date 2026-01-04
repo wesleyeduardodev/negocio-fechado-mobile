@@ -105,6 +105,49 @@ export const arquivoService = {
     await api.delete(`/arquivos/solicitacoes/${solicitacaoId}/fotos/${fotoId}`);
   },
 
+  async uploadFotosAvaliacao(
+    avaliacaoId: number,
+    uris: string[]
+  ): Promise<Arquivo[]> {
+    const formData = new FormData();
+
+    for (let i = 0; i < uris.length; i++) {
+      const compressedUri = await this.comprimirImagem(uris[i]);
+
+      formData.append('fotos', {
+        uri: compressedUri,
+        type: 'image/jpeg',
+        name: `foto_${i + 1}.jpg`,
+      } as unknown as Blob);
+    }
+
+    const response = await api.post<Arquivo[]>(
+      `/arquivos/avaliacoes/${avaliacaoId}/fotos`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return response.data;
+  },
+
+  async listarFotosAvaliacao(avaliacaoId: number): Promise<Arquivo[]> {
+    const response = await api.get<Arquivo[]>(
+      `/arquivos/avaliacoes/${avaliacaoId}/fotos`
+    );
+    return response.data;
+  },
+
+  async deletarFotoAvaliacao(
+    avaliacaoId: number,
+    fotoId: number
+  ): Promise<void> {
+    await api.delete(`/arquivos/avaliacoes/${avaliacaoId}/fotos/${fotoId}`);
+  },
+
   async uploadAvatar(uri: string): Promise<string> {
     const compressedUri = await this.comprimirImagem(uri);
 

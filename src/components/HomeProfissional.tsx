@@ -7,9 +7,15 @@ import {
   RefreshControl,
   ActivityIndicator,
   Linking,
+  Image,
+  Modal,
+  Dimensions,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -58,6 +64,9 @@ interface HomeProfissionalProps {
 export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps) {
   const { usuario } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<string[] | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const photoListRef = useRef<FlatList>(null);
 
   const { data: meuPerfil, refetch: refetchPerfil } = useQuery({
     queryKey: ['meu-perfil-profissional'],
@@ -199,6 +208,27 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
             </View>
             {trabalho.avaliacaoComentario && (
               <Text style={styles.avaliacaoComentario}>"{trabalho.avaliacaoComentario}"</Text>
+            )}
+            {trabalho.avaliacaoFotos && trabalho.avaliacaoFotos.length > 0 && (
+              <View style={styles.avaliacaoFotosContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.avaliacaoFotosList}
+                >
+                  {trabalho.avaliacaoFotos.map((foto, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => {
+                        setSelectedPhotos(trabalho.avaliacaoFotos);
+                        setSelectedPhotoIndex(index);
+                      }}
+                    >
+                      <Image source={{ uri: foto }} style={styles.avaliacaoFotoThumb} />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
             )}
           </View>
         )}
@@ -389,6 +419,75 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
           </View>
         )}
       </ScrollView>
+
+      {/* Modal para visualizar fotos */}
+      <Modal
+        visible={selectedPhotos !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPhotos(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.photoModal}>
+          <View style={styles.photoModalHeader}>
+            <TouchableOpacity
+              style={styles.photoModalButton}
+              onPress={() => setSelectedPhotos(null)}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <View style={{ width: 44 }} />
+          </View>
+
+          {selectedPhotos && (
+            <>
+              <FlatList
+                ref={photoListRef}
+                data={selectedPhotos}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={selectedPhotoIndex}
+                getItemLayout={(_, index) => ({
+                  length: SCREEN_WIDTH,
+                  offset: SCREEN_WIDTH * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(e) => {
+                  const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                  setSelectedPhotoIndex(newIndex);
+                }}
+                renderItem={({ item: foto }) => (
+                  <View style={styles.photoSlide}>
+                    <ScrollView
+                      contentContainerStyle={styles.zoomContainer}
+                      maximumZoomScale={4}
+                      minimumZoomScale={1}
+                      showsHorizontalScrollIndicator={false}
+                      showsVerticalScrollIndicator={false}
+                      centerContent
+                      bouncesZoom
+                    >
+                      <Image
+                        source={{ uri: foto }}
+                        style={styles.photoModalImage}
+                        resizeMode="contain"
+                      />
+                    </ScrollView>
+                  </View>
+                )}
+                keyExtractor={(_, index) => index.toString()}
+              />
+
+              <View style={styles.photoIndicator}>
+                <Text style={styles.photoIndicatorText}>
+                  {selectedPhotoIndex + 1} / {selectedPhotos.length}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -762,5 +861,70 @@ const styles = StyleSheet.create({
   semAvaliacaoText: {
     fontSize: 13,
     color: '#9ca3af',
+  },
+  avaliacaoFotosContainer: {
+    marginTop: 10,
+  },
+  avaliacaoFotosList: {
+    gap: 8,
+  },
+  avaliacaoFotoThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+  },
+  photoModal: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  photoModalHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    zIndex: 10,
+  },
+  photoModalButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoSlide: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoModalImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.8,
+  },
+  photoIndicator: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  photoIndicatorText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
