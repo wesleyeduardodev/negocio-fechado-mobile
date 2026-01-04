@@ -11,6 +11,7 @@ import {
   Image,
   Modal,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -59,6 +60,7 @@ export default function SolicitacaoDetalheScreen() {
   const isProfissionalMode = modo === 'profissional';
   const [interesseEnviado, setInteresseEnviado] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Query para modo cliente
   const {
@@ -71,6 +73,7 @@ export default function SolicitacaoDetalheScreen() {
     queryFn: () => solicitacaoService.buscarPorId(Number(id)),
     enabled: !!id && !isProfissionalMode,
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: 'always',
   });
 
@@ -85,6 +88,7 @@ export default function SolicitacaoDetalheScreen() {
     queryFn: () => solicitacaoService.buscarDisponivelPorId(Number(id)),
     enabled: !!id && isProfissionalMode,
     staleTime: 0,
+    gcTime: 0,
     refetchOnMount: 'always',
   });
 
@@ -107,6 +111,19 @@ export default function SolicitacaoDetalheScreen() {
       }
     }, [refetchCliente, refetchProfissional, refetchInteressados, isProfissionalMode])
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      if (isProfissionalMode) {
+        await refetchProfissional();
+      } else {
+        await Promise.all([refetchCliente(), refetchInteressados()]);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [isProfissionalMode, refetchProfissional, refetchCliente, refetchInteressados]);
 
   const interesseMutation = useMutation({
     mutationFn: interesseService.criar,
@@ -335,6 +352,9 @@ export default function SolicitacaoDetalheScreen() {
         style={styles.content}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
         {statusConfig && (
           <View style={styles.statusCard}>
@@ -416,7 +436,7 @@ export default function SolicitacaoDetalheScreen() {
                   onPress={() => setSelectedPhoto(foto)}
                   style={styles.fotoWrapper}
                 >
-                  <Image source={{ uri: foto }} style={styles.fotoThumb} />
+                  <Image source={{ uri: foto, cache: 'reload' }} style={styles.fotoThumb} />
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -611,7 +631,7 @@ export default function SolicitacaoDetalheScreen() {
           </TouchableOpacity>
           {selectedPhoto && (
             <Image
-              source={{ uri: selectedPhoto }}
+              source={{ uri: selectedPhoto, cache: 'reload' }}
               style={styles.photoModalImage}
               resizeMode="contain"
             />

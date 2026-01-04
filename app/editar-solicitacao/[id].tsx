@@ -18,6 +18,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { solicitacaoService } from '@/src/services/solicitacaoService';
+import { arquivoService } from '@/src/services/arquivoService';
 import { Urgencia, URGENCIA_LABELS, AtualizarSolicitacaoRequest } from '@/src/types/solicitacao';
 import { FotosPicker } from '@/src/components/FotosPicker';
 
@@ -46,6 +47,7 @@ export default function EditarSolicitacaoScreen() {
   const [showUrgenciaModal, setShowUrgenciaModal] = useState(false);
   const [fotos, setFotos] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [uploadingFotos, setUploadingFotos] = useState(false);
 
   const urgenciaOptions: Urgencia[] = ['URGENTE', 'ESTA_SEMANA', 'PROXIMAS_SEMANAS', 'APENAS_ORCANDO'];
 
@@ -80,7 +82,7 @@ export default function EditarSolicitacaoScreen() {
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!titulo.trim() || titulo.trim().length < 5) {
       Alert.alert('Erro', 'Titulo deve ter no minimo 5 caracteres');
       return;
@@ -94,12 +96,39 @@ export default function EditarSolicitacaoScreen() {
       return;
     }
 
-    atualizarMutation.mutate({
-      titulo: titulo.trim(),
-      descricao: descricao.trim(),
-      urgencia,
-      fotos,
-    });
+    try {
+      setUploadingFotos(true);
+
+      // Separar fotos existentes (https://) e novas (file://)
+      const fotosExistentes = fotos.filter(f => f.startsWith('http'));
+      const fotosNovas = fotos.filter(f => !f.startsWith('http'));
+
+      // PASSO 1: Primeiro atualizar com as fotos existentes (isso deleta as removidas do servidor)
+      await solicitacaoService.atualizar(Number(id), {
+        titulo: titulo.trim(),
+        descricao: descricao.trim(),
+        urgencia,
+        fotos: fotosExistentes,
+      });
+
+      // PASSO 2: Depois fazer upload das novas fotos (agora tem espaço)
+      if (fotosNovas.length > 0) {
+        await arquivoService.uploadFotosSolicitacao(Number(id), fotosNovas);
+      }
+
+      // Invalidar queries e mostrar sucesso
+      queryClient.invalidateQueries({ queryKey: ['solicitacao', id] });
+      queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
+      Alert.alert('Sucesso', 'Solicitacao atualizada com sucesso!', [
+        { text: 'OK', onPress: () => router.back() },
+      ]);
+    } catch (error: any) {
+      console.error('Erro ao atualizar:', error);
+      const message = error?.response?.data?.message || 'Falha ao atualizar solicitacao';
+      Alert.alert('Erro', message);
+    } finally {
+      setUploadingFotos(false);
+    }
   };
 
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
@@ -230,18 +259,20 @@ export default function EditarSolicitacaoScreen() {
             fotos={fotos}
             onFotosChange={setFotos}
             maxFotos={5}
-            disabled={atualizarMutation.isPending}
+            disabled={atualizarMutation.isPending || uploadingFotos}
           />
 
           <TouchableOpacity
-            style={[styles.submitButton, atualizarMutation.isPending && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (atualizarMutation.isPending || uploadingFotos) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={atualizarMutation.isPending}
+            disabled={atualizarMutation.isPending || uploadingFotos}
           >
-            {atualizarMutation.isPending ? (
+            {atualizarMutation.isPending || uploadingFotos ? (
               <>
                 <ActivityIndicator color="#fff" />
-                <Text style={styles.submitButtonText}>Salvando...</Text>
+                <Text style={styles.submitButtonText}>
+                  {uploadingFotos ? 'Enviando fotos...' : 'Salvando...'}
+                </Text>
               </>
             ) : (
               <>
