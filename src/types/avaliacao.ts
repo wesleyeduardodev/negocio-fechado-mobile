@@ -9,4 +9,5 @@ export interface AvaliacaoResponse {
   comentario: string;
   clienteNome: string;
   criadoEm: string;
+  fotos: string[];
 }

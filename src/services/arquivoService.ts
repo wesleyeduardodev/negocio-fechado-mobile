@@ -170,4 +170,47 @@ export const arquivoService = {
   async removerAvatar(): Promise<void> {
     await api.delete('/usuarios/me/foto');
   },
+
+  // Portfolio do profissional
+  async uploadFotosPerfil(uris: string[]): Promise<Arquivo[]> {
+    const formData = new FormData();
+
+    for (let i = 0; i < uris.length; i++) {
+      const compressedUri = await this.comprimirImagem(uris[i]);
+
+      formData.append('fotos', {
+        uri: compressedUri,
+        type: 'image/jpeg',
+        name: `portfolio_${i + 1}.jpg`,
+      } as unknown as Blob);
+    }
+
+    const response = await api.post<Arquivo[]>(
+      '/arquivos/perfil/fotos',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return response.data;
+  },
+
+  async listarFotosMeuPerfil(): Promise<Arquivo[]> {
+    const response = await api.get<Arquivo[]>('/arquivos/perfil/fotos');
+    return response.data;
+  },
+
+  async listarFotosPerfil(profissionalId: number): Promise<Arquivo[]> {
+    const response = await api.get<Arquivo[]>(
+      `/arquivos/profissionais/${profissionalId}/fotos`
+    );
+    return response.data;
+  },
+
+  async deletarFotoPerfil(fotoId: number): Promise<void> {
+    await api.delete(`/arquivos/perfil/fotos/${fotoId}`);
+  },
 };

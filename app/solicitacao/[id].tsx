@@ -468,19 +468,50 @@ export default function SolicitacaoDetalheScreen() {
                 {interessados.map((interesse) => (
                   <View key={interesse.id} style={styles.interessadoItem}>
                     <View style={styles.interessadoHeader}>
-                      <View style={styles.interessadoProfissional}>
-                        <View style={styles.profissionalAvatar}>
-                          <Text style={styles.profissionalAvatarText}>
-                            {interesse.profissionalNome.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
+                      <TouchableOpacity
+                        style={styles.interessadoProfissional}
+                        onPress={() => router.push(`/profissional/${interesse.profissionalId}`)}
+                      >
+                        {interesse.profissionalFotoUrl ? (
+                          <Image
+                            source={{ uri: interesse.profissionalFotoUrl }}
+                            style={styles.profissionalAvatarImage}
+                          />
+                        ) : (
+                          <View style={styles.profissionalAvatar}>
+                            <Text style={styles.profissionalAvatarText}>
+                              {interesse.profissionalNome.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                        )}
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.profissionalNome}>{interesse.profissionalNome}</Text>
+                          <View style={styles.profissionalNomeRow}>
+                            <Text style={styles.profissionalNome}>{interesse.profissionalNome}</Text>
+                            <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                          </View>
+                          <View style={styles.profissionalIndicadores}>
+                            {interesse.profissionalTotalAvaliacoes > 0 && (
+                              <View style={styles.indicadorItem}>
+                                <Ionicons name="star" size={12} color="#f59e0b" />
+                                <Text style={styles.indicadorText}>
+                                  {interesse.profissionalMediaAvaliacao.toFixed(1)} ({interesse.profissionalTotalAvaliacoes})
+                                </Text>
+                              </View>
+                            )}
+                            {interesse.profissionalQuantidadeFotos > 0 && (
+                              <View style={styles.indicadorItem}>
+                                <Ionicons name="camera" size={12} color="#6b7280" />
+                                <Text style={styles.indicadorText}>
+                                  {interesse.profissionalQuantidadeFotos} fotos
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={styles.interesseData}>
                             Interesse em {formatDate(interesse.criadoEm)}
                           </Text>
                         </View>
-                      </View>
+                      </TouchableOpacity>
                       {interesse.status === 'CONTRATADO' && (
                         <View style={styles.contratadoBadge}>
                           <Text style={styles.contratadoText}>Contratado</Text>
@@ -906,10 +937,36 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  profissionalAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  profissionalNomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   profissionalNome: {
     fontSize: 15,
     fontWeight: '600',
     color: '#111827',
+  },
+  profissionalIndicadores: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 2,
+  },
+  indicadorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  indicadorText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   interesseData: {
     fontSize: 12,

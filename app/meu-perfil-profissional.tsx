@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Switch,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +21,9 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { categoriaService } from '@/src/services/categoriaService';
 import { profissionalService } from '@/src/services/profissionalService';
+import { arquivoService } from '@/src/services/arquivoService';
 import { Categoria } from '@/src/types/categoria';
+import { Arquivo } from '@/src/types/arquivo';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -52,11 +55,14 @@ const ICON_COLORS: Record<string, { bg: string; icon: string }> = {
   'cut': { bg: '#fee2e2', icon: '#ef4444' },
 };
 
+const MAX_PORTFOLIO_FOTOS = 10;
+
 export default function MeuPerfilProfissionalScreen() {
   const queryClient = useQueryClient();
   const [selectedCategorias, setSelectedCategorias] = useState<Set<number>>(new Set());
   const [bio, setBio] = useState('');
   const [ativo, setAtivo] = useState(true);
+  const [uploadingFotos, setUploadingFotos] = useState(false);
 
   const { data: meuPerfil, isLoading: isLoadingPerfil, refetch: refetchPerfil } = useQuery({
     queryKey: ['meu-perfil-profissional'],
@@ -69,6 +75,13 @@ export default function MeuPerfilProfissionalScreen() {
     queryKey: ['categorias'],
     queryFn: categoriaService.listar,
     staleTime: 1000 * 60 * 5,
+  });
+
+  const { data: portfolioFotos, refetch: refetchPortfolio } = useQuery({
+    queryKey: ['portfolio-fotos'],
+    queryFn: arquivoService.listarFotosMeuPerfil,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   useFocusEffect(
@@ -133,6 +146,52 @@ export default function MeuPerfilProfissionalScreen() {
 
   const getIconColors = (icone: string) => {
     return ICON_COLORS[icone] || { bg: '#f3f4f6', icon: '#6b7280' };
+  };
+
+  const handleAdicionarFotos = async () => {
+    try {
+      const fotosAtuais = portfolioFotos?.length || 0;
+      const maxRestantes = MAX_PORTFOLIO_FOTOS - fotosAtuais;
+
+      if (maxRestantes <= 0) {
+        Alert.alert('Limite atingido', `Maximo de ${MAX_PORTFOLIO_FOTOS} fotos no portfolio`);
+        return;
+      }
+
+      const uris = await arquivoService.selecionarFotos(maxRestantes);
+      if (uris.length === 0) return;
+
+      setUploadingFotos(true);
+      await arquivoService.uploadFotosPerfil(uris);
+      await refetchPortfolio();
+      Alert.alert('Sucesso', 'Fotos adicionadas ao portfolio!');
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Erro ao adicionar fotos');
+    } finally {
+      setUploadingFotos(false);
+    }
+  };
+
+  const handleRemoverFoto = (foto: Arquivo) => {
+    Alert.alert(
+      'Remover foto',
+      'Deseja remover esta foto do seu portfolio?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await arquivoService.deletarFotoPerfil(foto.id);
+              await refetchPortfolio();
+            } catch (error: any) {
+              Alert.alert('Erro', error.message || 'Erro ao remover foto');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderCategoria = (categoria: Categoria) => {
@@ -256,6 +315,52 @@ export default function MeuPerfilProfissionalScreen() {
               maxLength={500}
             />
             <Text style={styles.charCount}>{bio.length}/500 (minimo 20)</Text>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Portfolio de trabalhos</Text>
+            <Text style={styles.sectionSubtitle}>
+              Mostre fotos dos seus trabalhos anteriores (max {MAX_PORTFOLIO_FOTOS})
+            </Text>
+
+            {portfolioFotos && portfolioFotos.length > 0 && (
+              <View style={styles.portfolioGrid}>
+                {portfolioFotos.map((foto) => (
+                  <View key={foto.id} style={styles.portfolioItem}>
+                    <Image source={{ uri: foto.url }} style={styles.portfolioImage} />
+                    <TouchableOpacity
+                      style={styles.portfolioRemoveButton}
+                      onPress={() => handleRemoverFoto(foto)}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {(!portfolioFotos || portfolioFotos.length < MAX_PORTFOLIO_FOTOS) && (
+              <TouchableOpacity
+                style={styles.addFotoButton}
+                onPress={handleAdicionarFotos}
+                disabled={uploadingFotos}
+              >
+                {uploadingFotos ? (
+                  <ActivityIndicator color="#3b82f6" />
+                ) : (
+                  <>
+                    <Ionicons name="camera-outline" size={24} color="#3b82f6" />
+                    <Text style={styles.addFotoText}>
+                      {portfolioFotos?.length ? 'Adicionar mais fotos' : 'Adicionar fotos'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.portfolioCount}>
+              {portfolioFotos?.length || 0}/{MAX_PORTFOLIO_FOTOS} fotos
+            </Text>
           </View>
 
           <TouchableOpacity
@@ -491,5 +596,48 @@ const styles = StyleSheet.create({
     color: '#3b82f6',
     fontSize: 15,
     fontWeight: '500',
+  },
+  portfolioGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  portfolioItem: {
+    position: 'relative',
+  },
+  portfolioImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  portfolioRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  addFotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    gap: 8,
+  },
+  addFotoText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3b82f6',
+  },
+  portfolioCount: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });

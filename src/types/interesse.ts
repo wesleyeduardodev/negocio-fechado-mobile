@@ -6,6 +6,10 @@ export interface Interesse {
   profissionalNome: string;
   profissionalCelular: string;
   profissionalBio: string;
+  profissionalFotoUrl: string | null;
+  profissionalQuantidadeFotos: number;
+  profissionalMediaAvaliacao: number;
+  profissionalTotalAvaliacoes: number;
   mensagem: string | null;
   status: StatusInteresse;
   criadoEm: string;

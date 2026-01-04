@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Modal,
+  Dimensions,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +19,10 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { profissionalService } from '@/src/services/profissionalService';
 import { avaliacaoService } from '@/src/services/avaliacaoService';
+import { arquivoService } from '@/src/services/arquivoService';
 import { AvaliacaoResponse } from '@/src/types/avaliacao';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -51,6 +57,9 @@ const ICON_COLORS: Record<string, { bg: string; icon: string }> = {
 export default function PerfilProfissionalScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const perfilId = Number(id);
+  const [selectedPhotos, setSelectedPhotos] = useState<string[]>([]);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
+  const photoListRef = useRef<FlatList>(null);
 
   const { data: perfil, isLoading, isError, refetch } = useQuery({
     queryKey: ['profissional', perfilId],
@@ -68,6 +77,14 @@ export default function PerfilProfissionalScreen() {
     refetchOnMount: 'always',
   });
 
+  const { data: portfolioFotos, refetch: refetchPortfolio } = useQuery({
+    queryKey: ['portfolio-profissional', perfilId],
+    queryFn: () => arquivoService.listarFotosPerfil(perfilId),
+    enabled: !!perfilId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
   const avaliacoes = avaliacoesData?.content ?? [];
 
   useFocusEffect(
@@ -75,9 +92,20 @@ export default function PerfilProfissionalScreen() {
       if (perfilId) {
         refetch();
         refetchAvaliacoes();
+        refetchPortfolio();
       }
-    }, [refetch, refetchAvaliacoes, perfilId])
+    }, [refetch, refetchAvaliacoes, refetchPortfolio, perfilId])
   );
+
+  const openPhotoModal = (photos: string[], index: number) => {
+    setSelectedPhotos(photos);
+    setSelectedPhotoIndex(index);
+  };
+
+  const closePhotoModal = () => {
+    setSelectedPhotos([]);
+    setSelectedPhotoIndex(null);
+  };
 
   const getIconName = (icone: string): keyof typeof Ionicons.glyphMap => {
     return ICON_MAP[icone] || 'ellipse';
@@ -212,6 +240,27 @@ export default function PerfilProfissionalScreen() {
           </View>
         </View>
 
+        {portfolioFotos && portfolioFotos.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Portfolio ({portfolioFotos.length})</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.portfolioContainer}
+            >
+              {portfolioFotos.map((foto, index) => (
+                <TouchableOpacity
+                  key={foto.id}
+                  onPress={() => openPhotoModal(portfolioFotos.map(f => f.url), index)}
+                  style={styles.portfolioPhotoWrapper}
+                >
+                  <Image source={{ uri: foto.url }} style={styles.portfolioPhoto} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Especialidades</Text>
           <View style={styles.categoriasList}>
@@ -261,12 +310,100 @@ export default function PerfilProfissionalScreen() {
                   </View>
                   {renderStars(avaliacao.nota)}
                   <Text style={styles.avaliacaoComentario}>{avaliacao.comentario}</Text>
+                  {avaliacao.fotos && avaliacao.fotos.length > 0 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.avaliacaoFotosContainer}
+                    >
+                      {avaliacao.fotos.map((foto, index) => (
+                        <TouchableOpacity
+                          key={index}
+                          onPress={() => openPhotoModal(avaliacao.fotos, index)}
+                          style={styles.avaliacaoFotoWrapper}
+                        >
+                          <Image source={{ uri: foto }} style={styles.avaliacaoFoto} />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  )}
                 </View>
               ))}
             </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Modal para visualizar foto em tela cheia */}
+      <Modal
+        visible={selectedPhotoIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closePhotoModal}
+        statusBarTranslucent
+      >
+        <View style={styles.photoModal}>
+          <View style={styles.photoModalHeader}>
+            <TouchableOpacity
+              style={styles.photoModalButton}
+              onPress={closePhotoModal}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <View style={{ width: 44 }} />
+          </View>
+
+          {selectedPhotoIndex !== null && selectedPhotos.length > 0 && (
+            <>
+              <FlatList
+                ref={photoListRef}
+                data={selectedPhotos}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={selectedPhotoIndex}
+                getItemLayout={(_, index) => ({
+                  length: SCREEN_WIDTH,
+                  offset: SCREEN_WIDTH * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(e) => {
+                  const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                  setSelectedPhotoIndex(newIndex);
+                }}
+                renderItem={({ item: foto }) => (
+                  <View style={styles.photoSlide}>
+                    <ScrollView
+                      contentContainerStyle={styles.zoomContainer}
+                      maximumZoomScale={4}
+                      minimumZoomScale={1}
+                      showsHorizontalScrollIndicator={false}
+                      showsVerticalScrollIndicator={false}
+                      centerContent
+                      bouncesZoom
+                    >
+                      <Image
+                        source={{ uri: foto }}
+                        style={styles.photoModalImage}
+                        resizeMode="contain"
+                      />
+                    </ScrollView>
+                  </View>
+                )}
+                keyExtractor={(_, index) => index.toString()}
+              />
+
+              {selectedPhotos.length > 1 && (
+                <View style={styles.photoIndicator}>
+                  <Text style={styles.photoIndicatorText}>
+                    {selectedPhotoIndex + 1} / {selectedPhotos.length}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -503,5 +640,85 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
     lineHeight: 20,
+  },
+  portfolioContainer: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  portfolioPhotoWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  portfolioPhoto: {
+    width: 150,
+    height: 150,
+    borderRadius: 12,
+  },
+  avaliacaoFotosContainer: {
+    gap: 8,
+    marginTop: 12,
+  },
+  avaliacaoFotoWrapper: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  avaliacaoFoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  photoModal: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  photoModalHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    zIndex: 10,
+  },
+  photoModalButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoSlide: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoModalImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.8,
+  },
+  photoIndicator: {
+    position: 'absolute',
+    bottom: 50,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  photoIndicatorText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
