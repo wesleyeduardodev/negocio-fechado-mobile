@@ -47,6 +47,13 @@ export interface CriarSolicitacaoRequest {
   fotos?: string[];
 }
 
+export interface AtualizarSolicitacaoRequest {
+  titulo: string;
+  descricao: string;
+  urgencia: Urgencia;
+  fotos?: string[];
+}
+
 export interface SolicitacoesStats {
   total: number;
   abertas: number;
@@ -76,6 +83,6 @@ export interface SolicitacaoParaProfissional {
   cidadeNome: string;
   uf: string;
   urgencia: Urgencia;
-  quantidadeFotos: number;
+  fotos: string[];
   criadoEm: string;
 }

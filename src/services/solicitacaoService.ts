@@ -3,6 +3,7 @@ import {
   SolicitacaoResumo,
   SolicitacaoDetalhe,
   CriarSolicitacaoRequest,
+  AtualizarSolicitacaoRequest,
   SolicitacoesStats,
   PageResponse,
   SolicitacaoParaProfissional,
@@ -23,6 +24,11 @@ export const solicitacaoService = {
 
   buscarPorId: async (id: number): Promise<SolicitacaoDetalhe> => {
     const response = await api.get<SolicitacaoDetalhe>(`/solicitacoes/${id}`);
+    return response.data;
+  },
+
+  atualizar: async (id: number, data: AtualizarSolicitacaoRequest): Promise<SolicitacaoDetalhe> => {
+    const response = await api.put<SolicitacaoDetalhe>(`/solicitacoes/${id}`, data);
     return response.data;
   },
 

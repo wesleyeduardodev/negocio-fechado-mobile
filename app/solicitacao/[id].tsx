@@ -8,6 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Image,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +18,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { interesseService } from '@/src/services/interesseService';
@@ -53,6 +58,7 @@ export default function SolicitacaoDetalheScreen() {
   const queryClient = useQueryClient();
   const isProfissionalMode = modo === 'profissional';
   const [interesseEnviado, setInteresseEnviado] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   // Query para modo cliente
   const {
@@ -313,7 +319,16 @@ export default function SolicitacaoDetalheScreen() {
         <Text style={styles.headerTitle}>
           {isProfissionalMode ? 'Solicitacao Disponivel' : 'Detalhes'}
         </Text>
-        <View style={{ width: 40 }} />
+        {!isProfissionalMode && (solicitacaoCliente as SolicitacaoDetalhe)?.status === 'ABERTA' ? (
+          <TouchableOpacity
+            onPress={() => router.push(`/editar-solicitacao/${id}`)}
+            style={styles.editButton}
+          >
+            <Ionicons name="create-outline" size={24} color="#3b82f6" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 40 }} />
+        )}
       </View>
 
       <ScrollView
@@ -385,6 +400,28 @@ export default function SolicitacaoDetalheScreen() {
             </View>
           )}
         </View>
+
+        {/* Fotos da Solicitacao */}
+        {solicitacao.fotos && solicitacao.fotos.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Fotos ({solicitacao.fotos.length})</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.fotosContainer}
+            >
+              {solicitacao.fotos.map((foto, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => setSelectedPhoto(foto)}
+                  style={styles.fotoWrapper}
+                >
+                  <Image source={{ uri: foto }} style={styles.fotoThumb} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Modo Cliente - Lista de Interessados */}
         {!isProfissionalMode && (
@@ -557,6 +594,30 @@ export default function SolicitacaoDetalheScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Modal para visualizar foto em tela cheia */}
+      <Modal
+        visible={!!selectedPhoto}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPhoto(null)}
+      >
+        <View style={styles.photoModal}>
+          <TouchableOpacity
+            style={styles.photoModalClose}
+            onPress={() => setSelectedPhoto(null)}
+          >
+            <Ionicons name="close" size={30} color="#fff" />
+          </TouchableOpacity>
+          {selectedPhoto && (
+            <Image
+              source={{ uri: selectedPhoto }}
+              style={styles.photoModalImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -954,5 +1015,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fotosContainer: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  fotoWrapper: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  fotoThumb: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+  },
+  photoModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoModalClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    padding: 10,
+  },
+  photoModalImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
   },
 });

@@ -160,7 +160,7 @@ export default function PerfilScreen() {
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.avatarContainer}>
-            {usuario?.fotoUrl ? (
+            {usuario?.fotoUrl && usuario.fotoUrl.length > 0 ? (
               <Image source={{ uri: usuario.fotoUrl }} style={styles.avatarImage} />
             ) : (
               <View style={styles.avatar}>
