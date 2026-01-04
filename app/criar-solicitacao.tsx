@@ -20,8 +20,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/src/stores/authStore';
 import { categoriaService } from '@/src/services/categoriaService';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
+import { arquivoService } from '@/src/services/arquivoService';
 import { Categoria } from '@/src/types/categoria';
 import { Urgencia, URGENCIA_LABELS } from '@/src/types/solicitacao';
+import { FotosPicker } from '@/src/components/FotosPicker';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -51,6 +53,8 @@ export default function CriarSolicitacaoScreen() {
   const [urgencia, setUrgencia] = useState<Urgencia | null>(null);
   const [showCategoriaModal, setShowCategoriaModal] = useState(false);
   const [showUrgenciaModal, setShowUrgenciaModal] = useState(false);
+  const [fotos, setFotos] = useState<string[]>([]);
+  const [uploadingFotos, setUploadingFotos] = useState(false);
 
   const urgenciaOptions: Urgencia[] = ['URGENTE', 'ESTA_SEMANA', 'PROXIMAS_SEMANAS', 'APENAS_ORCANDO'];
 
@@ -72,7 +76,18 @@ export default function CriarSolicitacaoScreen() {
 
   const criarMutation = useMutation({
     mutationFn: solicitacaoService.criar,
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      if (fotos.length > 0) {
+        try {
+          setUploadingFotos(true);
+          await arquivoService.uploadFotosSolicitacao(data.id, fotos);
+        } catch (error) {
+          console.error('Erro ao fazer upload das fotos:', error);
+        } finally {
+          setUploadingFotos(false);
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ['solicitacoes'] });
       queryClient.invalidateQueries({ queryKey: ['solicitacoes-stats'] });
       Alert.alert('Sucesso', 'Solicitacao criada com sucesso!', [
@@ -202,13 +217,25 @@ export default function CriarSolicitacaoScreen() {
             </TouchableOpacity>
           </View>
 
+          <FotosPicker
+            fotos={fotos}
+            onFotosChange={setFotos}
+            maxFotos={5}
+            disabled={criarMutation.isPending || uploadingFotos}
+          />
+
           <TouchableOpacity
-            style={[styles.submitButton, criarMutation.isPending && styles.submitButtonDisabled]}
+            style={[styles.submitButton, (criarMutation.isPending || uploadingFotos) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
-            disabled={criarMutation.isPending}
+            disabled={criarMutation.isPending || uploadingFotos}
           >
-            {criarMutation.isPending ? (
-              <ActivityIndicator color="#fff" />
+            {criarMutation.isPending || uploadingFotos ? (
+              <>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.submitButtonText}>
+                  {uploadingFotos ? 'Enviando fotos...' : 'Criando...'}
+                </Text>
+              </>
             ) : (
               <>
                 <Ionicons name="checkmark-circle" size={20} color="#fff" />

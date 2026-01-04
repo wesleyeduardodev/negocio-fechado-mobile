@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,11 +160,15 @@ export default function PerfilScreen() {
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            </View>
+            {usuario?.fotoUrl ? (
+              <Image source={{ uri: usuario.fotoUrl }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={styles.profileName}>{usuario?.nome || 'Usuario'}</Text>
           <View style={styles.profileInfo}>
@@ -379,6 +384,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: '700',
     color: '#fff',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   profileName: {
     fontSize: 22,

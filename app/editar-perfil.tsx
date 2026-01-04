@@ -20,6 +20,7 @@ import { router } from 'expo-router';
 import { useAuthStore } from '@/src/stores/authStore';
 import { usuarioService } from '@/src/services/usuarioService';
 import { localizacaoService, Cidade } from '@/src/services/localizacaoService';
+import { AvatarPicker } from '@/src/components/AvatarPicker';
 
 const UFS = [
   { sigla: 'AC', nome: 'Acre' },
@@ -55,6 +56,7 @@ export default function EditarPerfilScreen() {
   const { usuario, updateUsuario } = useAuthStore();
 
   const [nome, setNome] = useState('');
+  const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   const [uf, setUf] = useState('');
   const [cidadeIbgeId, setCidadeIbgeId] = useState(0);
   const [cidadeNome, setCidadeNome] = useState('');
@@ -70,6 +72,7 @@ export default function EditarPerfilScreen() {
   useEffect(() => {
     if (usuario) {
       setNome(usuario.nome || '');
+      setFotoUrl(usuario.fotoUrl || null);
       setUf(usuario.uf || '');
       setCidadeIbgeId(usuario.cidadeIbgeId || 0);
       setCidadeNome(usuario.cidadeNome || '');
@@ -144,7 +147,7 @@ export default function EditarPerfilScreen() {
         cidadeIbgeId: response.cidadeIbgeId,
         cidadeNome: response.cidadeNome,
         bairro: response.bairro,
-        fotoUrl: response.fotoUrl,
+        fotoUrl: fotoUrl,
       });
 
       Alert.alert('Sucesso', 'Perfil atualizado com sucesso', [
@@ -182,6 +185,15 @@ export default function EditarPerfilScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          <AvatarPicker
+            fotoUrl={fotoUrl}
+            onFotoChange={(url) => {
+              setFotoUrl(url);
+              updateUsuario({ ...usuario!, fotoUrl: url });
+            }}
+            size={120}
+          />
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nome completo</Text>
             <TextInput
