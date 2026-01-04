@@ -14,8 +14,6 @@ import {
   RefreshControl,
   FlatList,
 } from 'react-native';
-import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -64,7 +62,6 @@ export default function SolicitacaoDetalheScreen() {
   const [interesseEnviado, setInteresseEnviado] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const photoListRef = useRef<FlatList>(null);
 
   // Query para modo cliente
@@ -129,34 +126,6 @@ export default function SolicitacaoDetalheScreen() {
       setRefreshing(false);
     }
   }, [isProfissionalMode, refetchProfissional, refetchCliente, refetchInteressados]);
-
-  const handleDownloadPhoto = async (photoUrl: string) => {
-    try {
-      setDownloading(true);
-
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permissao necessaria', 'Precisamos de permissao para salvar a foto na galeria');
-        return;
-      }
-
-      const fileName = photoUrl.split('/').pop() || 'foto.jpg';
-      const fileUri = FileSystem.documentDirectory + fileName;
-
-      const downloadResult = await FileSystem.downloadAsync(photoUrl, fileUri);
-
-      if (downloadResult.status === 200) {
-        await MediaLibrary.saveToLibraryAsync(downloadResult.uri);
-        Alert.alert('Sucesso', 'Foto salva na galeria!');
-      } else {
-        throw new Error('Falha no download');
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Nao foi possivel salvar a foto');
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   const interesseMutation = useMutation({
     mutationFn: interesseService.criar,
@@ -657,7 +626,7 @@ export default function SolicitacaoDetalheScreen() {
         statusBarTranslucent
       >
         <View style={styles.photoModal}>
-          {/* Header com botões */}
+          {/* Header com botão fechar */}
           <View style={styles.photoModalHeader}>
             <TouchableOpacity
               style={styles.photoModalButton}
@@ -665,20 +634,7 @@ export default function SolicitacaoDetalheScreen() {
             >
               <Ionicons name="close" size={28} color="#fff" />
             </TouchableOpacity>
-
-            {selectedPhotoIndex !== null && solicitacao?.fotos && (
-              <TouchableOpacity
-                style={styles.photoModalButton}
-                onPress={() => handleDownloadPhoto(solicitacao.fotos[selectedPhotoIndex])}
-                disabled={downloading}
-              >
-                {downloading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="download-outline" size={28} color="#fff" />
-                )}
-              </TouchableOpacity>
-            )}
+            <View style={{ width: 44 }} />
           </View>
 
           {selectedPhotoIndex !== null && solicitacao?.fotos && (
@@ -701,11 +657,21 @@ export default function SolicitacaoDetalheScreen() {
                 }}
                 renderItem={({ item: foto }) => (
                   <View style={styles.photoSlide}>
-                    <Image
-                      source={{ uri: foto, cache: 'reload' }}
-                      style={styles.photoModalImage}
-                      resizeMode="contain"
-                    />
+                    <ScrollView
+                      contentContainerStyle={styles.zoomContainer}
+                      maximumZoomScale={4}
+                      minimumZoomScale={1}
+                      showsHorizontalScrollIndicator={false}
+                      showsVerticalScrollIndicator={false}
+                      centerContent
+                      bouncesZoom
+                    >
+                      <Image
+                        source={{ uri: foto, cache: 'reload' }}
+                        style={styles.photoModalImage}
+                        resizeMode="contain"
+                      />
+                    </ScrollView>
                   </View>
                 )}
                 keyExtractor={(_, index) => index.toString()}
@@ -1166,6 +1132,11 @@ const styles = StyleSheet.create({
   photoSlide: {
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
