@@ -37,6 +37,16 @@ export interface SolicitacaoDetalhe {
   totalInteresses: number;
   criadoEm: string;
   atualizadoEm: string;
+  // Profissional contratado
+  profissionalContratadoId: number | null;
+  profissionalContratadoNome: string | null;
+  profissionalContratadoFotoUrl: string | null;
+  // Avaliação
+  avaliacaoId: number | null;
+  avaliacaoNota: number | null;
+  avaliacaoComentario: string | null;
+  avaliacaoFotos: string[];
+  avaliacaoData: string | null;
 }
 
 export interface CriarSolicitacaoRequest {

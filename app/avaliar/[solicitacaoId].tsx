@@ -85,10 +85,6 @@ export default function AvaliarScreen() {
       Alert.alert('Erro', 'Selecione uma nota de 1 a 5 estrelas');
       return;
     }
-    if (comentario.trim().length < 10) {
-      Alert.alert('Erro', 'O comentario deve ter no minimo 10 caracteres');
-      return;
-    }
     avaliarMutation.mutate();
   };
 
@@ -153,7 +149,7 @@ export default function AvaliarScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.label}>Conte sua experiencia</Text>
+            <Text style={styles.label}>Conte sua experiencia (opcional)</Text>
             <TextInput
               style={styles.textArea}
               placeholder="Descreva como foi o servico, pontualidade, qualidade do trabalho..."
@@ -164,9 +160,6 @@ export default function AvaliarScreen() {
               value={comentario}
               onChangeText={setComentario}
             />
-            <Text style={styles.charCount}>
-              {comentario.length}/10 caracteres minimos
-            </Text>
           </View>
 
           <View style={styles.card}>
@@ -211,10 +204,10 @@ export default function AvaliarScreen() {
           <TouchableOpacity
             style={[
               styles.submitButton,
-              (nota === 0 || comentario.length < 10) && styles.submitButtonDisabled,
+              nota === 0 && styles.submitButtonDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={avaliarMutation.isPending || nota === 0 || comentario.length < 10}
+            disabled={avaliarMutation.isPending || nota === 0}
           >
             {avaliarMutation.isPending ? (
               <>
@@ -321,12 +314,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     minHeight: 120,
     backgroundColor: '#f9fafb',
-  },
-  charCount: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 8,
-    textAlign: 'right',
   },
   submitButton: {
     flexDirection: 'row',

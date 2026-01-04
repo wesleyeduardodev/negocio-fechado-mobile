@@ -589,14 +589,79 @@ export default function SolicitacaoDetalheScreen() {
                   )}
                 </TouchableOpacity>
                 <Text style={styles.interesseHint}>
-                  Ao demonstrar interesse, o WhatsApp sera aberto para voce conversar diretamente com o cliente
+                  Ao demonstrar interesse, o cliente sera notificado e voce podera entrar em contato pelo WhatsApp
                 </Text>
               </>
             )}
           </View>
         ) : (
           <>
-            {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'CONCLUIDA' && (
+            {/* Card do Profissional Contratado */}
+            {((solicitacaoCliente as SolicitacaoDetalhe)?.status === 'EM_ANDAMENTO' ||
+              (solicitacaoCliente as SolicitacaoDetalhe)?.status === 'CONCLUIDA') &&
+              (solicitacaoCliente as SolicitacaoDetalhe)?.profissionalContratadoId && (
+              <View style={styles.profissionalContratadoCard}>
+                <Text style={styles.profissionalContratadoLabel}>Profissional Contratado</Text>
+                <TouchableOpacity
+                  style={styles.profissionalContratadoInfo}
+                  onPress={() => router.push(`/profissional/${(solicitacaoCliente as SolicitacaoDetalhe).profissionalContratadoId}`)}
+                >
+                  {(solicitacaoCliente as SolicitacaoDetalhe).profissionalContratadoFotoUrl ? (
+                    <Image
+                      source={{ uri: (solicitacaoCliente as SolicitacaoDetalhe).profissionalContratadoFotoUrl! }}
+                      style={styles.profissionalContratadoAvatar}
+                    />
+                  ) : (
+                    <View style={styles.profissionalContratadoAvatarPlaceholder}>
+                      <Ionicons name="person" size={24} color="#fff" />
+                    </View>
+                  )}
+                  <Text style={styles.profissionalContratadoNome}>
+                    {(solicitacaoCliente as SolicitacaoDetalhe).profissionalContratadoNome}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Card de Avaliação (se já avaliou) */}
+            {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'CONCLUIDA' &&
+              (solicitacaoCliente as SolicitacaoDetalhe)?.avaliacaoId && (
+              <View style={styles.avaliacaoCard}>
+                <Text style={styles.avaliacaoCardLabel}>Sua Avaliacao</Text>
+                <View style={styles.avaliacaoStarsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Ionicons
+                      key={star}
+                      name={star <= ((solicitacaoCliente as SolicitacaoDetalhe).avaliacaoNota || 0) ? 'star' : 'star-outline'}
+                      size={24}
+                      color={star <= ((solicitacaoCliente as SolicitacaoDetalhe).avaliacaoNota || 0) ? '#f59e0b' : '#d1d5db'}
+                    />
+                  ))}
+                </View>
+                {(solicitacaoCliente as SolicitacaoDetalhe).avaliacaoComentario && (
+                  <Text style={styles.avaliacaoCardComentario}>
+                    "{(solicitacaoCliente as SolicitacaoDetalhe).avaliacaoComentario}"
+                  </Text>
+                )}
+                {(solicitacaoCliente as SolicitacaoDetalhe).avaliacaoFotos &&
+                  (solicitacaoCliente as SolicitacaoDetalhe).avaliacaoFotos.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.avaliacaoFotosScroll}
+                  >
+                    {(solicitacaoCliente as SolicitacaoDetalhe).avaliacaoFotos.map((foto, index) => (
+                      <Image key={index} source={{ uri: foto }} style={styles.avaliacaoFotoThumb} />
+                    ))}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            {/* Botão Avaliar (se ainda não avaliou) */}
+            {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'CONCLUIDA' &&
+              !(solicitacaoCliente as SolicitacaoDetalhe)?.avaliacaoId && (
               <TouchableOpacity
                 style={styles.avaliarButton}
                 onPress={handleAvaliar}
@@ -605,6 +670,7 @@ export default function SolicitacaoDetalheScreen() {
                 <Text style={styles.avaliarButtonText}>Avaliar Profissional</Text>
               </TouchableOpacity>
             )}
+
             {(solicitacaoCliente as SolicitacaoDetalhe)?.status === 'EM_ANDAMENTO' && (
               <TouchableOpacity
                 style={styles.concluirButton}
@@ -1207,5 +1273,75 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  profissionalContratadoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  profissionalContratadoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  profissionalContratadoInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  profissionalContratadoAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  profissionalContratadoAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profissionalContratadoNome: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  avaliacaoCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+  },
+  avaliacaoCardLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#92400e',
+    marginBottom: 12,
+  },
+  avaliacaoStarsRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 12,
+  },
+  avaliacaoCardComentario: {
+    fontSize: 14,
+    color: '#78350f',
+    fontStyle: 'italic',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  avaliacaoFotosScroll: {
+    gap: 8,
+  },
+  avaliacaoFotoThumb: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
   },
 });
