@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +19,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { categoriaService } from '@/src/services/categoriaService';
 import { profissionalService } from '@/src/services/profissionalService';
+import { arquivoService } from '@/src/services/arquivoService';
 import { Categoria } from '@/src/types/categoria';
+
+const MAX_PORTFOLIO_FOTOS = 10;
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -54,6 +58,8 @@ export default function TornarSeProfissionalScreen() {
   const queryClient = useQueryClient();
   const [selectedCategorias, setSelectedCategorias] = useState<Set<number>>(new Set());
   const [bio, setBio] = useState('');
+  const [fotos, setFotos] = useState<string[]>([]);
+  const [uploadingFotos, setUploadingFotos] = useState(false);
 
   const { data: categorias, isLoading: isLoadingCategorias } = useQuery({
     queryKey: ['categorias'],
@@ -62,7 +68,20 @@ export default function TornarSeProfissionalScreen() {
   });
 
   const criarMutation = useMutation({
-    mutationFn: profissionalService.criar,
+    mutationFn: async (data: { bio: string; categoriasIds: number[] }) => {
+      const perfil = await profissionalService.criar(data);
+
+      if (fotos.length > 0) {
+        setUploadingFotos(true);
+        try {
+          await arquivoService.uploadFotosPerfil(fotos);
+        } finally {
+          setUploadingFotos(false);
+        }
+      }
+
+      return perfil;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profissional-status'] });
       queryClient.invalidateQueries({ queryKey: ['meu-perfil-profissional'] });
@@ -112,6 +131,27 @@ export default function TornarSeProfissionalScreen() {
 
   const getIconColors = (icone: string) => {
     return ICON_COLORS[icone] || { bg: '#f3f4f6', icon: '#6b7280' };
+  };
+
+  const handleSelecionarFotos = async () => {
+    try {
+      const maxRestantes = MAX_PORTFOLIO_FOTOS - fotos.length;
+      if (maxRestantes <= 0) {
+        Alert.alert('Limite atingido', `Maximo de ${MAX_PORTFOLIO_FOTOS} fotos no portfolio`);
+        return;
+      }
+
+      const uris = await arquivoService.selecionarFotos(maxRestantes);
+      if (uris.length > 0) {
+        setFotos((prev) => [...prev, ...uris]);
+      }
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Erro ao selecionar fotos');
+    }
+  };
+
+  const handleRemoverFoto = (index: number) => {
+    setFotos((prev) => prev.filter((_, i) => i !== index));
   };
 
   const renderCategoria = (categoria: Categoria) => {
@@ -203,13 +243,57 @@ export default function TornarSeProfissionalScreen() {
             <Text style={styles.charCount}>{bio.length}/500 (minimo 20)</Text>
           </View>
 
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Portfolio de trabalhos</Text>
+            <Text style={styles.sectionSubtitle}>
+              Mostre fotos dos seus trabalhos anteriores (max {MAX_PORTFOLIO_FOTOS})
+            </Text>
+
+            {fotos.length > 0 && (
+              <View style={styles.portfolioGrid}>
+                {fotos.map((uri, index) => (
+                  <View key={index} style={styles.portfolioItem}>
+                    <Image source={{ uri }} style={styles.portfolioImage} />
+                    <TouchableOpacity
+                      style={styles.portfolioRemoveButton}
+                      onPress={() => handleRemoverFoto(index)}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {fotos.length < MAX_PORTFOLIO_FOTOS && (
+              <TouchableOpacity
+                style={styles.addFotoButton}
+                onPress={handleSelecionarFotos}
+              >
+                <Ionicons name="camera-outline" size={24} color="#3b82f6" />
+                <Text style={styles.addFotoText}>
+                  {fotos.length === 0 ? 'Adicionar fotos' : 'Adicionar mais fotos'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.portfolioCount}>
+              {fotos.length}/{MAX_PORTFOLIO_FOTOS} fotos
+            </Text>
+          </View>
+
           <TouchableOpacity
             style={[styles.submitButton, criarMutation.isPending && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={criarMutation.isPending}
           >
             {criarMutation.isPending ? (
-              <ActivityIndicator color="#fff" />
+              <>
+                <ActivityIndicator color="#fff" />
+                <Text style={styles.submitButtonText}>
+                  {uploadingFotos ? 'Enviando fotos...' : 'Criando perfil...'}
+                </Text>
+              </>
             ) : (
               <>
                 <Ionicons name="checkmark-circle" size={20} color="#fff" />
@@ -383,5 +467,48 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  portfolioGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  portfolioItem: {
+    position: 'relative',
+  },
+  portfolioImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  portfolioRemoveButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  addFotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    gap: 8,
+  },
+  addFotoText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#3b82f6',
+  },
+  portfolioCount: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 12,
+    textAlign: 'center',
   },
 });
