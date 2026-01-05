@@ -152,7 +152,8 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    color: '#888',
+    color: '#6b7280',
+    fontWeight: '500',
     marginTop: 8,
   },
 });

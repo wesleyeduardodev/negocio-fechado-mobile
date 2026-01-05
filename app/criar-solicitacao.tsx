@@ -224,6 +224,13 @@ export default function CriarSolicitacaoScreen() {
             disabled={criarMutation.isPending || uploadingFotos}
           />
 
+          <View style={styles.fotosHint}>
+            <Ionicons name="information-circle-outline" size={14} color="#6b7280" />
+            <Text style={styles.fotosHintText}>
+              Precisa enviar mais fotos ou videos? Voce podera usar o WhatsApp do profissional
+            </Text>
+          </View>
+
           <TouchableOpacity
             style={[styles.submitButton, (criarMutation.isPending || uploadingFotos) && styles.submitButtonDisabled]}
             onPress={handleSubmit}
@@ -547,5 +554,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
     color: '#6b7280',
+  },
+  fotosHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  fotosHintText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+    lineHeight: 16,
   },
 });
