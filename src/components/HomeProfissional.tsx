@@ -26,6 +26,7 @@ import { profissionalService } from '@/src/services/profissionalService';
 import { interesseService } from '@/src/services/interesseService';
 import { SolicitacaoParaProfissional } from '@/src/types/solicitacao';
 import { MeuTrabalho } from '@/src/types/interesse';
+import { NotificationBadge } from './NotificationBadge';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -307,9 +308,7 @@ export default function HomeProfissional({ onOpenDrawer }: HomeProfissionalProps
         <Text style={styles.headerTitle}>
           {usuario?.nome?.split(' ')[0] || 'Usuario'} - Profissional
         </Text>
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="notifications-outline" size={24} color="#374151" />
-        </TouchableOpacity>
+        <NotificationBadge />
       </View>
 
       <ScrollView

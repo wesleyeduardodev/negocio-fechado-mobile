@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { QueryProvider } from '@/src/providers/QueryProvider';
 import { useAuthStore } from '@/src/stores/authStore';
+import { useNotifications } from '@/src/hooks/useNotifications';
 
 export {
   ErrorBoundary,
@@ -54,6 +55,8 @@ function RootLayoutNav() {
 
   const { isAuthenticated, isLoading, loadStoredAuth } = useAuthStore();
 
+  useNotifications();
+
   useEffect(() => {
     loadStoredAuth();
   }, []);
@@ -81,6 +84,7 @@ function RootLayoutNav() {
         <Stack.Screen name="tornar-se-profissional" />
         <Stack.Screen name="meu-perfil-profissional" />
         <Stack.Screen name="profissional/[id]" />
+        <Stack.Screen name="notificacoes" />
         <Stack.Screen name="modal" options={{ presentation: 'modal', headerShown: true }} />
       </Stack>
     </ThemeProvider>

@@ -18,6 +18,7 @@ import { categoriaService } from '@/src/services/categoriaService';
 import { solicitacaoService } from '@/src/services/solicitacaoService';
 import { Categoria } from '@/src/types/categoria';
 import { SolicitacaoResumo, StatusSolicitacao } from '@/src/types/solicitacao';
+import { NotificationBadge } from './NotificationBadge';
 
 const ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
   'flash': 'flash',
@@ -169,9 +170,7 @@ export default function HomeCliente({ onOpenDrawer }: HomeClienteProps) {
         <Text style={styles.headerTitle}>
           {usuario?.nome?.split(' ')[0] || 'Usuario'} - Cliente
         </Text>
-        <TouchableOpacity style={styles.headerButton}>
-          <Ionicons name="notifications-outline" size={24} color="#374151" />
-        </TouchableOpacity>
+        <NotificationBadge />
       </View>
 
       <ScrollView
