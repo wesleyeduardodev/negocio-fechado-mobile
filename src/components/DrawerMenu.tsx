@@ -10,6 +10,7 @@ import {
   Switch,
   Alert,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
@@ -184,11 +185,15 @@ export default function DrawerMenu({ isOpen, onClose, isProfissional }: DrawerMe
           >
             <View style={styles.header}>
               <View style={styles.avatarContainer}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>
-                    {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
-                  </Text>
-                </View>
+                {usuario?.fotoUrl ? (
+                  <Image source={{ uri: usuario.fotoUrl }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {usuario?.nome?.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.userName}>{usuario?.nome || 'Usuario'}</Text>
               <Text style={styles.userPhone}>{usuario?.celular}</Text>
@@ -330,6 +335,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   avatarText: {
     fontSize: 24,
