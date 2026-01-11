@@ -83,11 +83,11 @@ export default function NotificacoesScreen() {
           router.push(`/solicitacao/${notificacao.referenciaId}?modo=profissional`);
           break;
         case 'NOVO_INTERESSE':
-        case 'SERVICO_CONCLUIDO':
-        case 'NOVA_AVALIACAO':
           router.push(`/solicitacao/${notificacao.referenciaId}`);
           break;
         case 'INTERESSE_ACEITO':
+        case 'SERVICO_CONCLUIDO':
+        case 'NOVA_AVALIACAO':
           router.push('/(tabs)');
           break;
       }
