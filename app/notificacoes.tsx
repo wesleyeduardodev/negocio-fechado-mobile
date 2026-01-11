@@ -88,7 +88,7 @@ export default function NotificacoesScreen() {
           router.push(`/solicitacao/${notificacao.referenciaId}`);
           break;
         case 'INTERESSE_ACEITO':
-          router.push('/meus-trabalhos');
+          router.push('/(tabs)');
           break;
       }
     }

@@ -128,7 +128,7 @@ export function useNotifications() {
         router.push(`/solicitacao/${data.referenciaId}`);
         break;
       case 'INTERESSE_ACEITO':
-        router.push(`/meus-trabalhos`);
+        router.push('/(tabs)');
         break;
       case 'SERVICO_CONCLUIDO':
       case 'NOVA_AVALIACAO':
